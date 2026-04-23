@@ -1,0 +1,246 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// --- Enum Definitions based on Permissions Matrix ---
+enum Role {
+  SYSTEM_ADMIN
+  PROCUREMENT_OFFICER
+  PRODUCTION_SUPERVISOR
+  QC_INSPECTOR
+  WAREHOUSE_OFFICER
+  SALES_EXECUTIVE
+  EXPORT_COORDINATOR
+  MANAGEMENT_VIEWER
+}
+
+enum MaterialCategory {
+  BILLET
+  ALLOY
+  CHEMICAL
+  COATING
+  TRADED_GOOD
+}
+
+enum ProcessType {
+  EXTRUSION
+  COATING
+  DIE_CASTING
+  VALUE_ADD
+}
+
+enum QcStatus {
+  PASS
+  HOLD
+  REJECT
+  PENDING
+}
+
+// --- Entites from ER Diagram ---
+
+model User {
+  id             String          @id @default(uuid()) @map("user_id")
+  name           String
+  email          String          @unique
+  role           Role            @default(MANAGEMENT_VIEWER)
+  department     String?
+
+  stockMovements StockMovement[] // Tracks actions performed by this user
+
+  @@map("users")
+}
+
+model Supplier {
+  id            String        @id @default(uuid()) @map("supplier_id")
+  name          String
+  country       String?
+  contactEmail  String?       @map("contact_email")
+  certification String?
+  deletedAt     DateTime?     @map("deleted_at")
+
+  rawMaterials  RawMaterial[]
+
+  @@map("suppliers")
+}
+
+model RawMaterial {
+  id               String           @id @default(uuid()) @map("material_id")
+  materialCategory MaterialCategory @default(BILLET) @map("material_category")
+  materialType     String           @map("material_type")
+  grade            String?
+  quantityKg       Float            @map("quantity_kg")
+  unit             String
+  reorderLevel     Float            @map("reorder_level")
+  origin           String?          // e.g., Origin for billet stock
+  supplierId       String           @map("supplier_id")
+  supplier         Supplier         @relation(fields: [supplierId], references: [id])
+  deletedAt        DateTime?        @map("deleted_at")
+
+  productionJobs ProductionJob[]
+
+  @@map("raw_materials")
+}
+
+model Die {
+  id              String          @id @default(uuid()) @map("die_id")
+  profileCode     String          @map("profile_code")
+  productCategory String          @map("product_category")
+  usageCount      Int             @default(0) @map("usage_count")
+  maxUsage        Int             @map("max_usage")
+  condition       String
+  deletedAt       DateTime?       @map("deleted_at")
+
+  productionJobs  ProductionJob[]
+
+  @@map("dies")
+}
+
+model ProductionJob {
+  id             String          @id @default(uuid()) @map("job_id")
+  materialId     String          @map("material_id")
+  dieId          String          @map("die_id")
+  processType    ProcessType     @map("process_type")
+  inputQtyKg     Float           @map("input_qty_kg")
+  outputQtyKg    Float?          @map("output_qty_kg")
+  status         String
+  qcStatus       QcStatus        @default(PENDING) @map("qc_status")
+  metadata       Json?           // Stores process-specific data like 'run_qty', 'mould_cycle', 'coating_agent', 'value_add_type'
+  startedAt      DateTime?       @map("started_at")
+  completedAt    DateTime?       @map("completed_at")
+  deletedAt      DateTime?       @map("deleted_at")
+  
+  material       RawMaterial     @relation(fields: [materialId], references: [id])
+  die            Die             @relation(fields: [dieId], references: [id])
+  
+  qcInspections  QcInspection[]
+  inventoryItems InventoryItem[]
+
+  @@map("production_jobs")
+}
+
+model QcInspection {
+  id            String        @id @default(uuid()) @map("inspection_id")
+  jobId         String        @map("job_id")
+  status        QcStatus      @map("status")
+  inspectorName String        @map("inspector_name")
+  notes         String?
+  inspectedAt   DateTime      @default(now()) @map("inspected_at")
+  
+  job           ProductionJob @relation(fields: [jobId], references: [id])
+
+  @@map("qc_inspections")
+}
+
+model Product {
+  id             String          @id @default(uuid()) @map("product_id")
+  sku            String          @unique
+  name           String
+  category       String
+  finishType     String          @map("finish_type")
+  lengthMm       Float           @map("length_mm")
+  unit           String
+  
+  inventoryItems InventoryItem[]
+  orderLines     OrderLine[]
+
+  @@map("products")
+}
+
+model InventoryItem {
+  id            String          @id @default(uuid()) @map("item_id")
+  productId     String          @map("product_id")
+  jobId         String?         @map("job_id")
+  quantity      Float
+  reservedQuantity Float        @default(0) @map("reserved_quantity")
+  locationCode  String          @map("location_code")
+  warehouseZone String          @map("warehouse_zone")
+  needsSupervisorReview Boolean  @default(false) @map("needs_supervisor_review")
+  receivedAt    DateTime        @default(now()) @map("received_at")
+  
+  product       Product         @relation(fields: [productId], references: [id])
+  job           ProductionJob?  @relation(fields: [jobId], references: [id])
+  
+  stockMovements StockMovement[]
+  orderLineReservations OrderLineReservation[]
+
+  @@map("inventory_items")
+}
+
+model Customer {
+  id           String       @id @default(uuid()) @map("customer_id")
+  name         String
+  type         String?
+  country      String?
+  contactEmail String?      @map("contact_email")
+  
+  salesOrders  SalesOrder[]
+
+  @@map("customers")
+}
+
+model SalesOrder {
+  id           String      @id @default(uuid()) @map("order_id")
+  customerId   String      @map("customer_id")
+  channel      String?
+  status       String
+  orderDate    DateTime    @default(now()) @map("order_date")
+  dispatchDate DateTime?   @map("dispatch_date")
+  
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  orderLines   OrderLine[]
+
+  @@map("sales_orders")
+}
+
+model OrderLine {
+  id            String     @id @default(uuid()) @map("line_id")
+  orderId       String     @map("order_id")
+  productId     String     @map("product_id")
+  qtyOrdered    Float      @map("qty_ordered")
+  qtyDispatched Float?     @default(0) @map("qty_dispatched")
+  unitPrice     Float      @map("unit_price")
+  
+  order         SalesOrder @relation(fields: [orderId], references: [id])
+  product       Product    @relation(fields: [productId], references: [id])
+  reservations  OrderLineReservation[]
+
+  @@map("order_lines")
+}
+
+model OrderLineReservation {
+  id          String        @id @default(uuid()) @map("reservation_id")
+  orderLineId String        @map("line_id")
+  itemId      String        @map("item_id")
+  quantity    Float
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  orderLine   OrderLine     @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([orderLineId, itemId])
+  @@map("order_line_reservations")
+}
+
+model StockMovement {
+  id           String        @id @default(uuid()) @map("movement_id")
+  itemId       String        @map("item_id")
+  movementType String        @map("movement_type")
+  quantity     Float
+  reason       String?
+  performedBy  String        @map("performed_by")
+  movedAt      DateTime      @default(now()) @map("moved_at")
+  
+  item         InventoryItem @relation(fields: [itemId], references: [id])
+  user         User          @relation(fields: [performedBy], references: [id])
+
+  @@map("stock_movements")
+}
