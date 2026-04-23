@@ -115,6 +115,7 @@ model ProductionJob {
   metadata       Json?           // Stores process-specific data like 'run_qty', 'mould_cycle', 'coating_agent', 'value_add_type'
   startedAt      DateTime?       @map("started_at")
   completedAt    DateTime?       @map("completed_at")
+  deletedAt      DateTime?       @map("deleted_at")
   
   material       RawMaterial     @relation(fields: [materialId], references: [id])
   die            Die             @relation(fields: [dieId], references: [id])
