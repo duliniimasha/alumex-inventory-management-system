@@ -21,6 +21,28 @@ enum Role {
   MANAGEMENT_VIEWER
 }
 
+enum MaterialCategory {
+  BILLET
+  ALLOY
+  CHEMICAL
+  COATING
+  TRADED_GOOD
+}
+
+enum ProcessType {
+  EXTRUSION
+  COATING
+  DIE_CASTING
+  VALUE_ADD
+}
+
+enum QcStatus {
+  PASS
+  HOLD
+  REJECT
+  PENDING
+}
+
 // --- Entites from ER Diagram ---
 
 model User {
@@ -48,14 +70,16 @@ model Supplier {
 }
 
 model RawMaterial {
-  id            String          @id @default(uuid()) @map("material_id")
-  materialType  String          @map("material_type")
-  grade         String?
-  quantityKg    Float           @map("quantity_kg")
-  unit          String
-  reorderLevel  Float           @map("reorder_level")
-  supplierId    String          @map("supplier_id")
-  supplier      Supplier        @relation(fields: [supplierId], references: [id])
+  id               String           @id @default(uuid()) @map("material_id")
+  materialCategory MaterialCategory @default(BILLET) @map("material_category")
+  materialType     String           @map("material_type")
+  grade            String?
+  quantityKg       Float            @map("quantity_kg")
+  unit             String
+  reorderLevel     Float            @map("reorder_level")
+  origin           String?          // e.g., Origin for billet stock
+  supplierId       String           @map("supplier_id")
+  supplier         Supplier         @relation(fields: [supplierId], references: [id])
 
   productionJobs ProductionJob[]
 
@@ -79,10 +103,12 @@ model ProductionJob {
   id             String          @id @default(uuid()) @map("job_id")
   materialId     String          @map("material_id")
   dieId          String          @map("die_id")
-  processType    String          @map("process_type")
+  processType    ProcessType     @map("process_type")
   inputQtyKg     Float           @map("input_qty_kg")
   outputQtyKg    Float?          @map("output_qty_kg")
   status         String
+  qcStatus       QcStatus        @default(PENDING) @map("qc_status")
+  metadata       Json?           // Stores process-specific data like 'run_qty', 'mould_cycle', 'coating_agent', 'value_add_type'
   startedAt      DateTime?       @map("started_at")
   completedAt    DateTime?       @map("completed_at")
   
@@ -98,7 +124,7 @@ model ProductionJob {
 model QcInspection {
   id            String        @id @default(uuid()) @map("inspection_id")
   jobId         String        @map("job_id")
-  result        String
+  status        QcStatus      @map("status")
   inspectorName String        @map("inspector_name")
   notes         String?
   inspectedAt   DateTime      @default(now()) @map("inspected_at")
