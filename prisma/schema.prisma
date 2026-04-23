@@ -160,6 +160,7 @@ model InventoryItem {
   productId     String          @map("product_id")
   jobId         String?         @map("job_id")
   quantity      Float
+  reservedQuantity Float        @default(0) @map("reserved_quantity")
   locationCode  String          @map("location_code")
   warehouseZone String          @map("warehouse_zone")
   needsSupervisorReview Boolean  @default(false) @map("needs_supervisor_review")
@@ -169,6 +170,7 @@ model InventoryItem {
   job           ProductionJob?  @relation(fields: [jobId], references: [id])
   
   stockMovements StockMovement[]
+  orderLineReservations OrderLineReservation[]
 
   @@map("inventory_items")
 }
@@ -209,8 +211,23 @@ model OrderLine {
   
   order         SalesOrder @relation(fields: [orderId], references: [id])
   product       Product    @relation(fields: [productId], references: [id])
+  reservations  OrderLineReservation[]
 
   @@map("order_lines")
+}
+
+model OrderLineReservation {
+  id          String        @id @default(uuid()) @map("reservation_id")
+  orderLineId String        @map("line_id")
+  itemId      String        @map("item_id")
+  quantity    Float
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  orderLine   OrderLine     @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([orderLineId, itemId])
+  @@map("order_line_reservations")
 }
 
 model StockMovement {
