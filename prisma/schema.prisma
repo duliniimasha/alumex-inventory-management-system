@@ -10,6 +10,7 @@ datasource db {
   provider = "postgresql"
 }
 
+
 // --- Enum Definitions based on Permissions Matrix ---
 enum Role {
   SYSTEM_ADMIN
