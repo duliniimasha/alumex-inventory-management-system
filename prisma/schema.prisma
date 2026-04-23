@@ -162,6 +162,7 @@ model InventoryItem {
   quantity      Float
   locationCode  String          @map("location_code")
   warehouseZone String          @map("warehouse_zone")
+  needsSupervisorReview Boolean  @default(false) @map("needs_supervisor_review")
   receivedAt    DateTime        @default(now()) @map("received_at")
   
   product       Product         @relation(fields: [productId], references: [id])
@@ -217,6 +218,7 @@ model StockMovement {
   itemId       String        @map("item_id")
   movementType String        @map("movement_type")
   quantity     Float
+  reason       String?
   performedBy  String        @map("performed_by")
   movedAt      DateTime      @default(now()) @map("moved_at")
   
