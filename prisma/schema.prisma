@@ -63,6 +63,7 @@ model Supplier {
   country       String?
   contactEmail  String?       @map("contact_email")
   certification String?
+  deletedAt     DateTime?     @map("deleted_at")
 
   rawMaterials  RawMaterial[]
 
@@ -80,6 +81,7 @@ model RawMaterial {
   origin           String?          // e.g., Origin for billet stock
   supplierId       String           @map("supplier_id")
   supplier         Supplier         @relation(fields: [supplierId], references: [id])
+  deletedAt        DateTime?        @map("deleted_at")
 
   productionJobs ProductionJob[]
 
@@ -93,6 +95,7 @@ model Die {
   usageCount      Int             @default(0) @map("usage_count")
   maxUsage        Int             @map("max_usage")
   condition       String
+  deletedAt       DateTime?       @map("deleted_at")
 
   productionJobs  ProductionJob[]
 
