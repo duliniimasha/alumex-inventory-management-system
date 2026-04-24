@@ -100,7 +100,6 @@ export class AuthService {
     const token = jwt.sign(claims, this.getJwtSecret(), {
       expiresIn: TOKEN_TTL_SECONDS,
       subject: user.id,
-      jwtid: jti,
     });
 
     await this.cleanupExpiredRevokedTokens();

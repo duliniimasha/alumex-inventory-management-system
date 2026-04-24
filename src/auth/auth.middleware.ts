@@ -62,18 +62,22 @@ function extractBearerToken(req: Request): string | null {
   return token;
 }
 
+function normalizePath(path: string): string {
+  return path.replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase();
+}
+
 function isPublicPath(req: Request): boolean {
-  const path = req.path.toLowerCase();
+  const path = normalizePath(req.path);
 
   if (req.method === 'OPTIONS') {
     return true;
   }
 
-  if (req.method === 'GET' && (path === '/' || path === '')) {
+  if (req.method === 'GET' && path === '') {
     return true;
   }
 
-  if (req.method === 'POST' && path === '/auth/login') {
+  if (req.method === 'POST' && path === 'auth/login') {
     return true;
   }
 
