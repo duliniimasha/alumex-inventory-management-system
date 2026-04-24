@@ -59,6 +59,10 @@ export class CustomersService {
         };
       }
 
+      if (filters.ownerUserId) {
+        where.ownerUserId = filters.ownerUserId;
+      }
+
       return await this.prisma.customer.findMany({
         where,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -135,7 +139,10 @@ export class CustomersService {
     }
   }
 
-  async createCustomer(body: CreateCustomerDto): Promise<Customer> {
+  async createCustomer(
+    body: CreateCustomerDto,
+    ownerUserId?: string,
+  ): Promise<Customer> {
     try {
       if (!body.name?.trim()) {
         throw new BadRequestException('name is required');
@@ -151,6 +158,7 @@ export class CustomersService {
           type: body.type,
           country: body.country?.trim() || null,
           contactEmail: body.contactEmail?.trim() || null,
+          ownerUserId: ownerUserId?.trim() || null,
         },
       });
     } catch (error) {

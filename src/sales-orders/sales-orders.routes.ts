@@ -23,6 +23,7 @@ export interface SalesOrderListFilters {
   status?: OrderStatus;
   channel?: SalesChannel;
   customerId?: string;
+  ownerUserId?: string;
   startDate?: Date;
   endDate?: Date;
 }
