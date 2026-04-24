@@ -84,3 +84,6 @@ Rules enforced in the backend:
 
 - Auth, RBAC, audit logging, and ownership checks are implemented in middleware.
 - Purchase-order, shipping-document, and RMA route groups are scaffolded so the permission matrix is represented in the app structure.
+
+
+
