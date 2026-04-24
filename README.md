@@ -420,6 +420,8 @@ The Prisma model is `AuditLog`, and it maps to the `audit_logs` table in `prisma
 
 ## Notes
 
-- The root server entry point is `src/main.ts`.
-- Global HTTP exceptions are formatted through `src/common/http-exception.filter.ts`.
-- If you add new protected routes, update both `src/app.module.ts` and this README together.
+- Auth, RBAC, audit logging, and ownership checks are implemented in middleware.
+- Purchase-order, shipping-document, and RMA route groups are scaffolded so the permission matrix is represented in the app structure.
+
+
+
