@@ -74,6 +74,7 @@ export class AppModule implements NestModule {
 
     consumer
       .apply(AuthenticateMiddleware, AuditLogMiddleware)
+      .exclude({ path: 'auth/login', method: RequestMethod.POST })
       .forRoutes({ path: '*', method: RequestMethod.ALL });
 
     consumer
