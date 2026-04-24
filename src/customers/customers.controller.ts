@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
 } from '@nestjs/common';
 import { Customer } from '@prisma/client';
 import { ApiResponse } from '../common/api-response.interface';
@@ -34,12 +35,14 @@ export class CustomersController {
   async listCustomers(
     @Query('type') typeRaw?: string,
     @Query('country') country?: string,
+    @Query('owner_user_id') ownerUserId?: string,
   ): Promise<ApiResponse<Customer[]>> {
     try {
       const type = typeRaw ? this.parseTypeFilter(typeRaw) : undefined;
       const data = await this.customersService.listCustomers({
         type,
         country,
+        ownerUserId,
       });
 
       return {
@@ -74,9 +77,13 @@ export class CustomersController {
   @Post()
   async createCustomer(
     @Body() body: CreateCustomerDto,
+    @Req() request: { user?: { id?: string } },
   ): Promise<ApiResponse<Customer>> {
     try {
-      const data = await this.customersService.createCustomer(body);
+      const data = await this.customersService.createCustomer(
+        body,
+        request.user?.id,
+      );
 
       return {
         success: true,

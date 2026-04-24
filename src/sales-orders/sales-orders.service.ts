@@ -23,7 +23,6 @@ const ORDER_STATUS_SET = new Set<string>(ORDER_STATUSES);
 const SALES_CHANNEL_SET = new Set<string>(SALES_CHANNELS);
 const DISPATCH_ALLOWED_ROLES = new Set<Role>([
   Role.WAREHOUSE_OFFICER,
-  Role.EXPORT_COORDINATOR,
   Role.SYSTEM_ADMIN,
 ]);
 
@@ -145,6 +144,10 @@ export class SalesOrdersService {
         where.customerId = filters.customerId;
       }
 
+      if (filters.ownerUserId) {
+        where.ownerUserId = filters.ownerUserId;
+      }
+
       if (filters.startDate || filters.endDate) {
         where.orderDate = {};
 
@@ -196,7 +199,10 @@ export class SalesOrdersService {
     }
   }
 
-  async createOrder(body: CreateSalesOrderDto): Promise<SalesOrderDetails> {
+  async createOrder(
+    body: CreateSalesOrderDto,
+    ownerUserId?: string,
+  ): Promise<SalesOrderDetails> {
     try {
       this.validateCreateOrderPayload(body);
 
@@ -217,6 +223,7 @@ export class SalesOrdersService {
         const order = await tx.salesOrder.create({
           data: {
             customerId: body.customerId,
+            ownerUserId: ownerUserId?.trim() || null,
             channel,
             status: 'pending',
             orderDate: this.parseOptionalDate(body.orderDate) ?? new Date(),
@@ -260,7 +267,7 @@ export class SalesOrdersService {
 
       if (!DISPATCH_ALLOWED_ROLES.has(actor.role)) {
         throw new ForbiddenException(
-          'Only warehouse_officer, export_coordinator, or system_admin can dispatch orders',
+          'Only warehouse_officer or system_admin can dispatch orders',
         );
       }
 

@@ -42,6 +42,7 @@ export class SalesOrdersController {
     @Query('status') status?: string,
     @Query('channel') channel?: string,
     @Query('customer_id') customerId?: string,
+    @Query('owner_user_id') ownerUserId?: string,
     @Query('start_date') startDateRaw?: string,
     @Query('end_date') endDateRaw?: string,
   ): Promise<ApiResponse<SalesOrderListItem[]>> {
@@ -61,6 +62,7 @@ export class SalesOrdersController {
         status: parsedStatus,
         channel: parsedChannel,
         customerId,
+        ownerUserId,
         startDate,
         endDate,
       });
@@ -110,6 +112,7 @@ export class SalesOrdersController {
         unit_price?: number;
       }>;
     },
+    @Req() request: { user?: { id?: string } },
   ): Promise<ApiResponse<SalesOrderDetails>> {
     try {
       const normalizedBody: CreateSalesOrderDto = {
@@ -124,7 +127,10 @@ export class SalesOrdersController {
           })) ?? [],
       };
 
-      const data = await this.salesOrdersService.createOrder(normalizedBody);
+      const data = await this.salesOrdersService.createOrder(
+        normalizedBody,
+        request.user?.id,
+      );
 
       return {
         success: true,

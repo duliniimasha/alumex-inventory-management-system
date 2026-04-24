@@ -10,4 +10,5 @@ export type CustomerType = (typeof CUSTOMER_TYPES)[number];
 export interface CustomerListFilters {
   type?: CustomerType;
   country?: string;
+  ownerUserId?: string;
 }
