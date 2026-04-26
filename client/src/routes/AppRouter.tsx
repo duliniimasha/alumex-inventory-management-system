@@ -11,6 +11,7 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { logoutUser } from '../api/auth.api';
+import DashboardLayout from '../layouts/DashboardLayout';
 import ForbiddenPage from '../pages/errors/ForbiddenPage';
 import { useAuthStore } from '../store/auth.store';
 import LoginPage from '../pages/auth/LoginPage';
@@ -73,7 +74,7 @@ function PlaceholderPage({ title }: { title: string }) {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-6 py-10">
+    <main className="mx-auto w-full max-w-5xl px-2 py-4 sm:px-4 sm:py-6">
       <section className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
@@ -132,20 +133,22 @@ export default function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/production" element={<ProductionPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route
-            path="/users"
-            element={(
-              <RoleGuard allowedRoles={['system_admin']}>
-                <UsersPage />
-              </RoleGuard>
-            )}
-          />
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/production" element={<ProductionPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route
+              path="/users"
+              element={(
+                <RoleGuard allowedRoles={['system_admin']}>
+                  <UsersPage />
+                </RoleGuard>
+              )}
+            />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
