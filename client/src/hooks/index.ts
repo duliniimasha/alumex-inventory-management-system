@@ -2,6 +2,8 @@ export { useAuth } from './useAuth';
 export { useClickOutside } from './useClickOutside';
 export { useDebounce } from './useDebounce';
 export { usePageTitle } from './usePageTitle';
+export { useProductionJobs } from './useProductionJobs';
+export { useQcInspections } from './useQcInspections';
 export { useRawMaterials } from './useRawMaterials';
 export { useRoleAccess } from './useRoleAccess';
 export { useSuppliers } from './useSuppliers';

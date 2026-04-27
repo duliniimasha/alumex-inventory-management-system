@@ -65,7 +65,21 @@ export default function AppRouter() {
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/raw-materials" element={<RawMaterialsPage />} />
-            <Route path="/production" element={<ProductionPage />} />
+            <Route
+              path="/production"
+              element={(
+                <RoleGuard
+                  allowedRoles={[
+                    'system_admin',
+                    'production_supervisor',
+                    'qc_inspector',
+                    'management_viewer',
+                  ]}
+                >
+                  <ProductionPage />
+                </RoleGuard>
+              )}
+            />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/customers" element={<CustomersPage />} />
