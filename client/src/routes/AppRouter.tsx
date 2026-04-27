@@ -15,7 +15,7 @@ import NotFoundPage from '../pages/errors/NotFoundPage';
 import InventoryPage from '../pages/inventory/InventoryPage';
 import OrdersPage from '../pages/orders/OrdersPage';
 import ProductionPage from '../pages/production/ProductionPage';
-import RawMaterialsPage from '../pages/raw-materials/RawMaterialsPage';
+import RawMaterialsPage from '../pages/rawMaterials/RawMaterialsPage';
 import ReportsPage from '../pages/reports/ReportsPage';
 import SuppliersPage from '../pages/suppliers/SuppliersPage';
 import UsersPage from '../pages/users/UsersPage';

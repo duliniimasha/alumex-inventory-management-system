@@ -7,6 +7,7 @@ import {
 import { Prisma, Supplier } from '@prisma/client';
 import { PaginationMeta } from '../common/api-response.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { SupplierListFilters } from './suppliers.routes';
 
 export interface CreateSupplierDto {
   name: string;
@@ -24,12 +25,39 @@ export class SuppliersService {
   async listSuppliers(
     page = 1,
     limit = 10,
+    filters: SupplierListFilters = {},
   ): Promise<{ suppliers: Supplier[]; pagination: PaginationMeta }> {
     try {
       const safePage = Math.max(page, 1);
       const safeLimit = Math.min(Math.max(limit, 1), 100);
       const skip = (safePage - 1) * safeLimit;
       const where: Prisma.SupplierWhereInput = { deletedAt: null };
+
+      const normalizedCountry = filters.country?.trim();
+      if (normalizedCountry) {
+        where.country = {
+          equals: normalizedCountry,
+          mode: 'insensitive',
+        };
+      }
+
+      const normalizedSearch = filters.search?.trim();
+      if (normalizedSearch) {
+        where.OR = [
+          {
+            name: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+          {
+            contactEmail: {
+              contains: normalizedSearch,
+              mode: 'insensitive',
+            },
+          },
+        ];
+      }
 
       const [total, suppliers] = await this.prisma.$transaction([
         this.prisma.supplier.count({ where }),

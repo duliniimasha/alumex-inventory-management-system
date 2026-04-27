@@ -40,7 +40,7 @@ export class RawMaterialsService {
 
   async listRawMaterials(
     filters: RawMaterialListFilters,
-  ): Promise<RawMaterial[]> {
+  ): Promise<RawMaterialWithSupplier[]> {
     try {
       const where: Prisma.RawMaterialWhereInput = { deletedAt: null };
 
@@ -51,15 +51,21 @@ export class RawMaterialsService {
         };
       }
 
-      if (filters.grade) {
+      const gradeQuery = filters.search?.trim() || filters.grade?.trim();
+      if (gradeQuery) {
         where.grade = {
-          equals: filters.grade,
+          contains: gradeQuery,
           mode: 'insensitive',
         };
       }
 
+      if (filters.supplierId) {
+        where.supplierId = filters.supplierId;
+      }
+
       const rawMaterials = await this.prisma.rawMaterial.findMany({
         where,
+        include: { supplier: true },
         orderBy: { materialType: 'asc' },
       });
 
