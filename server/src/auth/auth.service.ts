@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -26,6 +27,12 @@ export interface LoginDto {
   password: string;
 }
 
+export interface ChangePasswordDto {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
 export interface AuthUserProfile {
   user_id: string;
   name: string;
@@ -42,6 +49,8 @@ export interface LoginResult {
 }
 
 const TOKEN_TTL_SECONDS = 60 * 60;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 128;
 
 @Injectable()
 export class AuthService {
@@ -83,7 +92,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
@@ -141,6 +153,38 @@ export class AuthService {
     return this.toAuthUserProfile(user);
   }
 
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    this.ensurePasswordValid(dto.new_password);
+
+    if (dto.new_password !== dto.confirm_password) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Authenticated user not found');
+    }
+
+    const currentPasswordMatches = await bcrypt.compare(
+      dto.current_password,
+      user.passwordHash,
+    );
+
+    if (!currentPasswordMatches) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.new_password, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
   private async cleanupExpiredRevokedTokens(): Promise<void> {
     await this.prisma.revokedToken.deleteMany({
       where: {
@@ -159,6 +203,21 @@ export class AuthService {
     }
 
     return secret;
+  }
+
+  private ensurePasswordValid(password: string): void {
+    if (!password) {
+      throw new BadRequestException('Password is required');
+    }
+
+    if (
+      password.length < PASSWORD_MIN_LENGTH ||
+      password.length > PASSWORD_MAX_LENGTH
+    ) {
+      throw new BadRequestException(
+        `Password must be ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters long`,
+      );
+    }
   }
 
   private toAuthUserProfile(user: {

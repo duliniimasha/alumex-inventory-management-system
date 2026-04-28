@@ -15,7 +15,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePageTitle, useReports, useRoleAccess } from '../../hooks';
 import type { ReportType } from '../../hooks/useReports';
-import type { ReportDateRange, StockTurnoverReport } from '../../types/reports.types';
+import type { StockTurnoverReport } from '../../types/reports.types';
 import { formatDateTime, formatNumber, formatWeight } from '../../utils/formatters';
 import { getCategoryLabel } from '../../utils/inventory.utils';
 import BarChartWidget from '../../components/charts/BarChartWidget';
@@ -24,7 +24,7 @@ import DataTable, { type Column } from '../../components/ui/DataTable';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorAlert from '../../components/ui/ErrorAlert';
 import PageHeader from '../../components/ui/PageHeader';
-import DateRangePicker, { formatReportDate } from '../../components/reports/DateRangePicker';
+import DateRangePicker from '../../components/reports/DateRangePicker';
 import AgingStockPanel from '../../components/reports/AgingStockPanel';
 import ExportTraceabilityPanel from '../../components/reports/ExportTraceabilityPanel';
 import ProductionSummaryPanel from '../../components/reports/ProductionSummaryPanel';
@@ -47,10 +47,10 @@ type RoleSlug =
 const reportAccess: Record<ReportType, RoleSlug[]> = {
   stock_summary: ['system_admin', 'management_viewer', 'warehouse_officer'],
   aging_stock: ['system_admin', 'management_viewer', 'warehouse_officer'],
-  stock_turnover: ['system_admin', 'management_viewer'],
+  stock_turnover: ['system_admin', 'management_viewer', 'warehouse_officer'],
   reorder_alerts: ['system_admin', 'management_viewer', 'procurement_officer'],
-  production_summary: ['system_admin', 'management_viewer', 'production_supervisor'],
-  qc_pass_rate: ['system_admin', 'management_viewer', 'qc_inspector'],
+  production_summary: ['system_admin', 'management_viewer', 'production_supervisor', 'qc_inspector'],
+  qc_pass_rate: ['system_admin', 'management_viewer', 'production_supervisor', 'qc_inspector'],
   sales_summary: [
     'system_admin',
     'management_viewer',
@@ -151,17 +151,6 @@ const exportableReports: ReportType[] = [
   'top_products',
   'sales_summary',
 ];
-
-function buildMonthToTodayRange(current: ReportDateRange): ReportDateRange {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), 1);
-
-  return {
-    from_date: formatReportDate(start),
-    to_date: formatReportDate(today),
-    period: current.period ?? 'daily',
-  };
-}
 
 function StockTurnoverPanel({
   data,
@@ -321,7 +310,6 @@ export default function ReportsPage() {
     const isActiveAccessible = accessibleReports.some((item) => item.key === activeReport);
 
     if (!hasInitialized.current) {
-      setDateRange(buildMonthToTodayRange(dateRange));
       setActiveReport(firstReport.key);
       hasInitialized.current = true;
       return;
@@ -330,7 +318,7 @@ export default function ReportsPage() {
     if (!isActiveAccessible) {
       setActiveReport(firstReport.key);
     }
-  }, [accessibleReports, activeReport, dateRange, setActiveReport, setDateRange]);
+  }, [accessibleReports, activeReport, setActiveReport]);
 
   const supportsExport = exportableReports.includes(activeReport);
 

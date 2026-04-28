@@ -14,6 +14,7 @@ import {
 import type { ReportDateRange } from '../../types/reports.types';
 
 type PresetKey =
+  | 'all_time'
   | 'today'
   | 'this_week'
   | 'this_month'
@@ -25,6 +26,7 @@ type PresetKey =
 type PeriodOption = 'daily' | 'weekly' | 'monthly';
 
 const PRESET_OPTIONS: Array<{ key: PresetKey; label: string }> = [
+  { key: 'all_time', label: 'All Time' },
   { key: 'today', label: 'Today' },
   { key: 'this_week', label: 'This Week' },
   { key: 'this_month', label: 'This Month' },
@@ -46,6 +48,9 @@ export function formatReportDate(date: Date): string {
 
 function getPresetRange(key: PresetKey, today: Date) {
   switch (key) {
+    case 'all_time': {
+      return null;
+    }
     case 'today': {
       return { from: today, to: today };
     }
@@ -80,8 +85,12 @@ function getMatchingPreset(value: ReportDateRange, today: Date): PresetKey {
   const fromDate = value.from_date;
   const toDate = value.to_date;
 
+  if (!fromDate && !toDate) {
+    return 'all_time';
+  }
+
   for (const preset of PRESET_OPTIONS) {
-    if (preset.key === 'custom') {
+    if (preset.key === 'custom' || preset.key === 'all_time') {
       continue;
     }
 
@@ -132,6 +141,15 @@ export default function DateRangePicker({
     setSelectedPreset(key);
 
     if (key === 'custom') {
+      return;
+    }
+
+    if (key === 'all_time') {
+      onChange({
+        from_date: '',
+        to_date: '',
+        period: value.period,
+      });
       return;
     }
 

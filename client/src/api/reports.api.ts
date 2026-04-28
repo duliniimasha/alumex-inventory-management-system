@@ -82,7 +82,65 @@ function normalizeStatus(value: unknown): string {
 }
 
 function normalizeChannel(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
+  return String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function normalizeCategory(value: unknown): StockSummaryReport['categories'][number]['category'] {
+  const text = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+
+  switch (text) {
+    case 'architectural':
+    case 'household':
+    case 'hardware':
+    case 'industrial':
+    case 'trading':
+      return text;
+    case 'trading_goods':
+    case 'traded_good':
+    case 'traded_goods':
+      return 'trading';
+    default:
+      return 'trading';
+  }
+}
+
+function normalizeProcessType(value: unknown): ProductionSummaryReport['by_process_type'][number]['process_type'] {
+  const text = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+
+  switch (text) {
+    case 'extrusion':
+      return 'extrusion';
+    case 'coating':
+    case 'powder_coating':
+      return 'powder_coating';
+    case 'die_casting':
+      return 'die_casting';
+    case 'value_add':
+    case 'cutting':
+      return 'cutting';
+    case 'anodizing':
+    case 'welding':
+    case 'laser':
+    case 'cnc':
+      return text;
+    default:
+      return 'other';
+  }
+}
+
+function normalizeWarehouseZone(value: unknown): AgingStockItem['warehouse_zone'] {
+  const text = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+
+  switch (text) {
+    case 'main':
+    case 'export':
+    case 'quarantine':
+    case 'dispatch':
+    case 'returns':
+      return text;
+    default:
+      return 'main';
+  }
 }
 
 function toStockSummaryReport(data: unknown): StockSummaryReport {
@@ -97,7 +155,7 @@ function toStockSummaryReport(data: unknown): StockSummaryReport {
     );
 
     return {
-      category: String(record.category ?? 'trading') as StockSummaryReport['categories'][number]['category'],
+      category: normalizeCategory(record.category),
       total_items: totalItems,
       total_quantity: totalQuantity,
       below_reorder_count: toNumber(
@@ -138,7 +196,7 @@ function toStockTurnoverReport(
     const receivedQty = toNumber(record.received_qty ?? record.receivedQty);
 
     return {
-      category: String(record.category ?? 'trading') as StockTurnoverReport['by_category'][number]['category'],
+      category: normalizeCategory(record.category),
       opening_qty: openingQty,
       received_qty: receivedQty,
       dispatched_qty: dispatchedQty,
@@ -182,7 +240,7 @@ function toProductionSummaryReport(
       byStatus[status as keyof typeof byStatus] += count;
     }
 
-    const processType = String(record.processType ?? record.process_type ?? 'other');
+    const processType = normalizeProcessType(record.processType ?? record.process_type);
     const current = processMap.get(processType) ?? {
       job_count: 0,
       total_input_kg: 0,
@@ -202,7 +260,7 @@ function toProductionSummaryReport(
         : 0;
 
     return {
-      process_type: processType as ProductionSummaryReport['by_process_type'][number]['process_type'],
+      process_type: processType,
       job_count: metrics.job_count,
       total_input_kg: metrics.total_input_kg,
       total_output_kg: metrics.total_output_kg,
@@ -303,7 +361,7 @@ function toTopProductsReport(
       product_id: String(record.product_id ?? record.productId ?? ''),
       sku: String(record.sku ?? ''),
       name: String(record.name ?? record.productName ?? 'Unknown Product'),
-      category: String(record.category ?? 'trading') as TopProductsReport['products'][number]['category'],
+      category: normalizeCategory(record.category),
       total_dispatched_qty: toNumber(record.total_dispatched_qty ?? record.dispatchedQty ?? record.qty_dispatched),
       unit: String(record.unit ?? 'unit'),
       order_count: toNumber(record.order_count ?? record.orderCount),
@@ -442,8 +500,8 @@ function toAgingStockItem(row: Record<string, unknown>): AgingStockItem {
     item_id: (row.item_id ?? row.itemId ?? '') as string,
     product_sku: (row.product_sku ?? row.sku ?? '') as string,
     product_name: (row.product_name ?? row.productName ?? '') as string,
-    category: (row.category ?? 'trading') as AgingStockItem['category'],
-    warehouse_zone: (row.warehouse_zone ?? row.warehouseZone ?? 'main') as AgingStockItem['warehouse_zone'],
+    category: normalizeCategory(row.category),
+    warehouse_zone: normalizeWarehouseZone(row.warehouse_zone ?? row.warehouseZone),
     location_code: (row.location_code ?? row.locationCode ?? '') as string,
     quantity: toNumber(row.quantity),
     unit: (row.unit ?? 'unit') as string,
@@ -560,7 +618,7 @@ export async function getQcPassRate(
     const total = pass + hold + reject;
 
     return {
-      process_type: String(record.processType ?? record.process_type ?? 'other'),
+      process_type: normalizeProcessType(record.processType ?? record.process_type),
       pass,
       hold,
       reject,

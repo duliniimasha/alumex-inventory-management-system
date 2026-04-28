@@ -37,18 +37,10 @@ export type ReportType =
 
 const DEFAULT_AGING_DAYS = 90;
 
-function formatDate(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
 function buildDefaultDateRange(): ReportDateRange {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), 1);
-  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
   return {
-    from_date: formatDate(start),
-    to_date: formatDate(end),
+    from_date: '',
+    to_date: '',
     period: 'daily',
   };
 }

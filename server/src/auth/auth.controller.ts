@@ -10,6 +10,7 @@ import type { ApiResponse } from '../common/api-response.interface';
 import {
   AuthService,
   type AuthUserProfile,
+  type ChangePasswordDto,
   type LoginDto,
   type LoginResult,
   type RegisterUserDto,
@@ -62,7 +63,9 @@ export class AuthController {
   }
 
   @Get('me')
-  async me(@Req() request: AuthenticatedRequest): Promise<ApiResponse<AuthUserProfile>> {
+  async me(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ApiResponse<AuthUserProfile>> {
     if (!request.user) {
       throw new UnauthorizedException('Authentication required');
     }
@@ -73,6 +76,24 @@ export class AuthController {
       success: true,
       data: profile,
       message: 'Current user fetched successfully',
+    };
+  }
+
+  @Post('change-password')
+  async changePassword(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: ChangePasswordDto,
+  ): Promise<ApiResponse<{ success: boolean }>> {
+    if (!request.user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    await this.authService.changePassword(request.user.id, body);
+
+    return {
+      success: true,
+      data: { success: true },
+      message: 'Password changed successfully',
     };
   }
 }
