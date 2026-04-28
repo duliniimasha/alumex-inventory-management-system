@@ -216,6 +216,8 @@ model Customer {
   type         String?
   country      String?
   contactEmail String?      @map("contact_email")
+  contactPhone String?      @map("contact_phone")
+  address      String?
   ownerUserId  String?      @map("owner_user_id")
   
   salesOrders  SalesOrder[]

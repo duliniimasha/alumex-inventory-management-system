@@ -1,20 +1,24 @@
 import {
   AlertTriangle,
   BarChart3,
-  Boxes,
+  CheckCircle,
   ClipboardPlus,
   DollarSign,
   Package,
   ShoppingCart,
   Truck,
+  Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { useOrders } from '../../hooks/useOrders';
+import { useProductionJobs } from '../../hooks/useProductionJobs';
 import { useRawMaterials } from '../../hooks/useRawMaterials';
 import { useRoleAccess } from '../../hooks/useRoleAccess';
 import StatCard from '../../components/ui/StatCard';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { formatNumber, toTitleCase } from '../../utils/formatters';
+import { formatDate, formatNumber, toTitleCase } from '../../utils/formatters';
 
 const skeletonStatuses: Array<'pending' | 'in_progress' | 'completed' | 'on_hold'> = [
   'pending',
@@ -24,38 +28,19 @@ const skeletonStatuses: Array<'pending' | 'in_progress' | 'completed' | 'on_hold
   'pending',
 ];
 
-const quickActionCatalog = [
-  {
-    label: 'New Order',
-    icon: ClipboardPlus,
-    key: 'new-order',
-  },
-  {
-    label: 'Receive Stock',
-    icon: Truck,
-    key: 'receive-stock',
-  },
-  {
-    label: 'Run Stocktake',
-    icon: Boxes,
-    key: 'run-stocktake',
-  },
-  {
-    label: 'View Reports',
-    icon: BarChart3,
-    key: 'view-reports',
-  },
-] as const;
-
 function DashboardContent() {
   usePageTitle('Dashboard');
+  const navigate = useNavigate();
   const {
     canCreateOrders,
     canDispatch,
     canManageProduction,
     canViewReports,
-    isReadOnly,
+    canDoQC,
+    isAdmin,
   } = useRoleAccess();
+  const { stats } = useOrders();
+  const { jobs, isLoading: isJobsLoading } = useProductionJobs();
   const {
     rawMaterials,
     belowReorderCount,
@@ -69,29 +54,76 @@ function DashboardContent() {
 
   const displayedReorderAlerts = reorderAlerts.slice(0, 3);
 
-  const quickActions = quickActionCatalog.filter((action) => {
-    if (action.key === 'new-order') {
-      return canCreateOrders;
+  const recentJobs = useMemo(() => jobs.slice(0, 5), [jobs]);
+
+  const quickActions = useMemo(() => {
+    const actions = [] as Array<{
+      label: string;
+      icon: typeof ClipboardPlus;
+      onClick: () => void;
+    }>;
+
+    if (canCreateOrders) {
+      actions.push({
+        label: 'New Order',
+        icon: ClipboardPlus,
+        onClick: () => navigate('/orders', { state: { openCreate: true } }),
+      });
     }
 
-    if (action.key === 'receive-stock') {
-      return canDispatch;
+    if (canDispatch) {
+      actions.push({
+        label: 'Pending Dispatch',
+        icon: Truck,
+        onClick: () => navigate('/orders', { state: { filter: 'pending_dispatch' } }),
+      });
     }
 
-    if (action.key === 'run-stocktake') {
-      return canManageProduction || (!isReadOnly && canDispatch);
+    if (canManageProduction) {
+      actions.push({
+        label: 'New Production Job',
+        icon: Package,
+        onClick: () => navigate('/production'),
+      });
     }
 
-    if (action.key === 'view-reports') {
-      return canViewReports;
+    if (isAdmin) {
+      actions.push({
+        label: 'User Management',
+        icon: Users,
+        onClick: () => navigate('/users'),
+      });
     }
 
-    return false;
-  });
+    if (canDoQC) {
+      actions.push({
+        label: 'Pending QC',
+        icon: CheckCircle,
+        onClick: () => navigate('/production', { state: { filter: 'in_progress' } }),
+      });
+    }
+
+    if (canViewReports) {
+      actions.push({
+        label: 'View Reports',
+        icon: BarChart3,
+        onClick: () => navigate('/reports'),
+      });
+    }
+
+    return actions;
+  }, [
+    canCreateOrders,
+    canDispatch,
+    canManageProduction,
+    canViewReports,
+    canDoQC,
+    isAdmin,
+    navigate,
+  ]);
 
   return (
     <div className="space-y-6">
-      {/* TODO: Wire KPI data from GET /dashboard/kpis endpoint. */}
       <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           title="Total SKUs"
@@ -101,16 +133,15 @@ function DashboardContent() {
           color="amber"
         />
         <StatCard
-          title="Stock Value (LKR)"
-          value="—"
-          subtitle="Current estimated stock worth"
+          title="Total Value (LKR)"
+          value={stats ? formatNumber(stats.totalValue, 2) : '—'}
+          subtitle="Total sales order value"
           icon={DollarSign}
           color="blue"
         />
-        {/* TODO: Replace with GET /orders?status=pending count once orders API is available. */}
         <StatCard
           title="Pending Orders"
-          value="—"
+          value={stats?.pendingOrders ?? '—'}
           subtitle="Orders awaiting fulfillment"
           icon={ShoppingCart}
           color="green"
@@ -125,13 +156,13 @@ function DashboardContent() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        {/* TODO: Wire production jobs from GET /production/jobs?limit=5 endpoint. */}
         <article className="rounded-xl bg-white shadow-sm lg:col-span-2">
           <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h2 className="text-base font-semibold text-gray-800">Recent Production Jobs</h2>
             <button
               type="button"
               className="text-sm font-medium text-amber-600 transition hover:text-amber-700"
+              onClick={() => navigate('/production')}
             >
               View all
             </button>
@@ -149,25 +180,55 @@ function DashboardContent() {
                 </tr>
               </thead>
               <tbody>
-                {skeletonStatuses.map((status, index) => (
-                  <tr key={`job-skeleton-${status}-${index}`} className="border-b border-gray-100 last:border-b-0">
-                    <td className="px-5 py-3">
-                      <div className="h-3 w-14 animate-pulse rounded bg-gray-200" />
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="h-3 w-24 animate-pulse rounded bg-gray-200" />
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={status} />
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+                {isJobsLoading ? (
+                  skeletonStatuses.map((status, index) => (
+                    <tr key={`job-skeleton-${status}-${index}`} className="border-b border-gray-100 last:border-b-0">
+                      <td className="px-5 py-3">
+                        <div className="h-3 w-14 animate-pulse rounded bg-gray-200" />
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="h-3 w-24 animate-pulse rounded bg-gray-200" />
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusBadge status={status} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+                      </td>
+                    </tr>
+                  ))
+                ) : recentJobs.length === 0 ? (
+                  <tr className="border-b border-gray-100 last:border-b-0">
+                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-500">
+                      No production jobs yet.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentJobs.map((job) => {
+                    const materialLabel = job.raw_material?.grade
+                      ? `${job.raw_material.material_type} · ${job.raw_material.grade}`
+                      : job.raw_material?.material_type ?? '—';
+
+                    return (
+                      <tr key={job.id} className="border-b border-gray-100 last:border-b-0">
+                        <td className="px-5 py-3 font-mono text-xs text-gray-700">#{job.id.slice(0, 8)}</td>
+                        <td className="px-5 py-3 text-sm text-gray-700">
+                          {toTitleCase(job.process_type)}
+                        </td>
+                        <td className="px-5 py-3">
+                          <StatusBadge status={job.status} />
+                        </td>
+                        <td className="px-5 py-3 text-sm text-gray-700">{materialLabel}</td>
+                        <td className="px-5 py-3 text-sm text-gray-600">
+                          {job.started_at ? formatDate(job.started_at) : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -201,12 +262,11 @@ function DashboardContent() {
                       key={material.id}
                       className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50/40 p-3"
                     >
-                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
                       <div>
                         <p className="text-sm font-medium text-gray-800">{title}</p>
                         <p className="text-xs text-gray-500">
-                          Current: {formatNumber(material.quantity_kg)} {unitLabel} · Reorder:{' '}
-                          {formatNumber(material.reorder_level)} {unitLabel}
+                          {formatNumber(material.quantity_kg)} {unitLabel} | Reorder level {formatNumber(material.reorder_level)} {unitLabel}
                         </p>
                       </div>
                     </li>
@@ -222,7 +282,6 @@ function DashboardContent() {
             ) : null}
           </article>
 
-          {/* TODO: Wire quick-action enablement from role-based permissions endpoint if needed. */}
           <article className="rounded-xl bg-white p-5 shadow-sm">
             <header className="mb-4">
               <h2 className="text-base font-semibold text-gray-800">Quick Actions</h2>
@@ -234,9 +293,10 @@ function DashboardContent() {
 
                 return (
                   <button
-                    key={action.key}
+                    key={action.label}
                     type="button"
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-amber-400 hover:text-amber-700"
+                    onClick={action.onClick}
                   >
                     <Icon className="h-4 w-4" />
                     {action.label}

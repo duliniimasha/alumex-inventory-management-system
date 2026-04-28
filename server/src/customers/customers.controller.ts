@@ -35,6 +35,7 @@ export class CustomersController {
   async listCustomers(
     @Query('type') typeRaw?: string,
     @Query('country') country?: string,
+    @Query('search') search?: string,
     @Query('owner_user_id') ownerUserId?: string,
   ): Promise<ApiResponse<Customer[]>> {
     try {
@@ -42,6 +43,7 @@ export class CustomersController {
       const data = await this.customersService.listCustomers({
         type,
         country,
+        search,
         ownerUserId,
       });
 
@@ -116,7 +118,7 @@ export class CustomersController {
   private parseTypeFilter(value: string): CustomerType {
     if (!CUSTOMER_TYPE_SET.has(value)) {
       throw new BadRequestException(
-        'type must be one of: B2B, fabricator, export, retail',
+        'type must be one of: B2B, fabricator, export, retail, government',
       );
     }
 

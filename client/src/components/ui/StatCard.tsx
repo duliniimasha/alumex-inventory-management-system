@@ -1,6 +1,6 @@
 import { TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
 
-type StatCardColor = 'amber' | 'blue' | 'green' | 'red';
+type StatCardColor = 'amber' | 'blue' | 'green' | 'red' | 'purple';
 
 interface StatCardProps {
   title: string;
@@ -19,6 +19,7 @@ const iconToneByColor: Record<StatCardColor, string> = {
   blue: 'bg-blue-100 text-blue-600',
   green: 'bg-green-100 text-green-600',
   red: 'bg-red-100 text-red-600',
+  purple: 'bg-purple-100 text-purple-600',
 };
 
 export default function StatCard({

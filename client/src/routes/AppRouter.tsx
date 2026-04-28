@@ -97,8 +97,37 @@ export default function AppRouter() {
                 </RoleGuard>
               )}
             />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/customers" element={<CustomersPage />} />
+            <Route
+              path="/orders"
+              element={(
+                <RoleGuard
+                  allowedRoles={[
+                    'system_admin',
+                    'sales_executive',
+                    'export_coordinator',
+                    'warehouse_officer',
+                    'management_viewer',
+                  ]}
+                >
+                  <OrdersPage />
+                </RoleGuard>
+              )}
+            />
+            <Route
+              path="/customers"
+              element={(
+                <RoleGuard
+                  allowedRoles={[
+                    'system_admin',
+                    'sales_executive',
+                    'export_coordinator',
+                    'management_viewer',
+                  ]}
+                >
+                  <CustomersPage />
+                </RoleGuard>
+              )}
+            />
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route
