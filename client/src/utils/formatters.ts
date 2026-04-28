@@ -16,6 +16,9 @@ export function formatWeight(kg: number): string {
 
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
+  if (!dateString || Number.isNaN(date.getTime())) {
+    return '-';
+  }
 
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
@@ -26,6 +29,9 @@ export function formatDate(dateString: string): string {
 
 export function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
+  if (!dateString || Number.isNaN(date.getTime())) {
+    return '-';
+  }
   const datePart = new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',

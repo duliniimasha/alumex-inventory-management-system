@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Bell,
   ChevronDown,
   LogOut,
   Menu,
-  Search,
   Settings,
   User,
 } from 'lucide-react';
@@ -103,29 +101,7 @@ export default function Header({ onMenuToggle, pageTitle = 'Dashboard' }: Header
         <h1 className="truncate text-base font-semibold text-gray-800 sm:text-lg">{pageTitle}</h1>
       </div>
 
-      <div className="hidden flex-1 justify-center md:flex">
-        <div className="relative w-full max-w-[360px]">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search inventory, orders, suppliers..."
-            className="h-10 w-full rounded-full border-none bg-gray-100 pl-11 pr-4 text-sm text-gray-800 outline-none ring-0 placeholder:text-gray-500 focus:ring-2 focus:ring-amber-400"
-          />
-        </div>
-      </div>
-
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            3
-          </span>
-        </button>
-
         <div className="hidden h-8 w-px bg-gray-200 sm:block" />
 
         <div className="relative" ref={dropdownRef}>

@@ -17,6 +17,8 @@ import { useAuthStore } from '../../store/auth.store';
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  appName: string;
+  appVersion: string;
 }
 
 interface NavItem {
@@ -26,7 +28,7 @@ interface NavItem {
   roles: string[];
 }
 
-const navItems: NavItem[] = [
+export const navItems: NavItem[] = [
   {
     label: 'Dashboard',
     icon: LayoutDashboard,
@@ -101,11 +103,14 @@ function getInitials(name: string | undefined): string {
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, appName, appVersion }: SidebarProps) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const userRole = user?.role ?? '';
+
+  const [primaryLabel, ...secondaryParts] = appName.split(' ').filter(Boolean);
+  const secondaryLabel = secondaryParts.join(' ');
 
   const visibleNavItems = navItems.filter((item) => item.roles.includes('all') || item.roles.includes(userRole));
 
@@ -149,8 +154,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xl font-extrabold tracking-[0.08em]">
-                  <span className="text-white">ALUMEX</span>{' '}
-                  <span className="text-amber-400">IMS</span>
+                  <span className="text-white">{primaryLabel ?? appName}</span>
+                  {secondaryLabel ? (
+                    <span className="text-amber-400"> {secondaryLabel}</span>
+                  ) : null}
                 </p>
                 <p className="mt-1 text-xs font-medium text-slate-400">Inventory Management</p>
               </div>
@@ -210,6 +217,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <LogOut className="h-4 w-4" />
               Logout
             </button>
+
+            <p className="mt-3 text-center text-[11px] font-medium text-slate-500">
+              v{appVersion}
+            </p>
           </div>
         </div>
       </aside>

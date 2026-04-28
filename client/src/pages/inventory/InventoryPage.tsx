@@ -18,6 +18,8 @@ import TransferStockForm from '../../components/inventory/TransferStockForm';
 import WarehouseZoneMap from '../../components/inventory/WarehouseZoneMap';
 import Badge from '../../components/ui/Badge';
 import DataTable, { type Column } from '../../components/ui/DataTable';
+import EmptyState from '../../components/ui/EmptyState';
+import ErrorAlert from '../../components/ui/ErrorAlert';
 import FilterBar from '../../components/ui/FilterBar';
 import Modal from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
@@ -650,34 +652,21 @@ export default function InventoryPage() {
       </FilterBar>
 
       {error ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <p>{error}</p>
-          <button
-            type="button"
-            className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-            onClick={() => void fetchItems()}
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorAlert message={error} onRetry={() => void fetchItems()} />
       ) : null}
 
       {!isLoading && pagedItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
-          <div className="mb-3 rounded-full bg-gray-100 p-3 text-gray-400">
-            <Boxes className="h-6 w-6" />
-          </div>
-          <p className="text-sm font-medium text-gray-600">{emptyMessage}</p>
-          {canManageInventory ? (
-            <button
-              type="button"
-              onClick={() => setIsReceiveOpen(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
-            >
-              <ArrowDownCircle className="h-4 w-4" />
-              Receive Stock
-            </button>
-          ) : null}
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12">
+          <EmptyState
+            icon={Boxes}
+            title="No inventory items found"
+            description={emptyMessage}
+            action={canManageInventory ? {
+              label: 'Receive Stock',
+              onClick: () => setIsReceiveOpen(true),
+              icon: ArrowDownCircle,
+            } : undefined}
+          />
         </div>
       ) : (
         <DataTable

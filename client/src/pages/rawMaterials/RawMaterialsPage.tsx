@@ -8,6 +8,7 @@ import RawMaterialForm from '../../components/rawMaterials/RawMaterialForm';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import DataTable, { type Column } from '../../components/ui/DataTable';
+import ErrorAlert from '../../components/ui/ErrorAlert';
 import FilterBar from '../../components/ui/FilterBar';
 import Modal from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
@@ -470,20 +471,7 @@ export default function RawMaterialsPage() {
       </div>
 
       {error ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <div className="inline-flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{error}</p>
-          </div>
-
-          <button
-            type="button"
-            className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-            onClick={() => void fetchRawMaterials()}
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorAlert message={error} onRetry={() => void fetchRawMaterials()} />
       ) : null}
 
       <DataTable

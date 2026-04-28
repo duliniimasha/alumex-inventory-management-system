@@ -4,20 +4,24 @@ import {
   CheckCircle,
   ClipboardPlus,
   DollarSign,
+  Factory,
   Package,
   ShoppingCart,
   Truck,
   Users,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useOrders } from '../../hooks/useOrders';
 import { useProductionJobs } from '../../hooks/useProductionJobs';
 import { useRawMaterials } from '../../hooks/useRawMaterials';
 import { useRoleAccess } from '../../hooks/useRoleAccess';
+import { useInventory } from '../../hooks/useInventory';
 import StatCard from '../../components/ui/StatCard';
 import StatusBadge from '../../components/ui/StatusBadge';
+import EmptyState from '../../components/ui/EmptyState';
+import { getProducts } from '../../api/inventory.api';
 import { formatDate, formatNumber, toTitleCase } from '../../utils/formatters';
 
 const skeletonStatuses: Array<'pending' | 'in_progress' | 'completed' | 'on_hold'> = [
@@ -39,13 +43,43 @@ function DashboardContent() {
     canDoQC,
     isAdmin,
   } = useRoleAccess();
-  const { stats } = useOrders();
+  const { stats, isStatsLoading } = useOrders();
   const { jobs, isLoading: isJobsLoading } = useProductionJobs();
   const {
     rawMaterials,
     belowReorderCount,
     isLoading: isRawMaterialsLoading,
   } = useRawMaterials();
+  const { totalStockValue, isLoading: isInventoryLoading } = useInventory();
+
+  const [skuCount, setSkuCount] = useState<number | null>(null);
+  const [isSkuLoading, setIsSkuLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsSkuLoading(true);
+
+    getProducts({ page: 1, limit: 1 })
+      .then((response) => {
+        if (isMounted) {
+          setSkuCount(response.pagination.total ?? response.data.length);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setSkuCount(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsSkuLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const reorderAlerts = useMemo(
     () => rawMaterials.filter((material) => material.quantity_kg < material.reorder_level),
@@ -122,37 +156,71 @@ function DashboardContent() {
     navigate,
   ]);
 
+  const totalSkusLabel = skuCount === null ? '—' : formatNumber(skuCount, 0);
+  const totalStockValueLabel = formatNumber(totalStockValue, 0);
+  const pendingOrdersLabel = stats ? formatNumber(stats.pendingOrders, 0) : '—';
+  const reorderAlertsLabel = isRawMaterialsLoading ? '—' : formatNumber(belowReorderCount);
+
+  const StatCardSkeleton = () => (
+    <article className="rounded-xl bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-3">
+          <div className="h-4 w-24 animate-pulse rounded bg-gray-200" />
+          <div className="h-7 w-20 animate-pulse rounded bg-gray-200" />
+        </div>
+        <div className="h-10 w-10 animate-pulse rounded-full bg-gray-200" />
+      </div>
+      <div className="mt-4 h-4 w-32 animate-pulse rounded bg-gray-100" />
+    </article>
+  );
+
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard
-          title="Total SKUs"
-          value="—"
-          subtitle="Across all warehouses"
-          icon={Package}
-          color="amber"
-        />
-        <StatCard
-          title="Total Value (LKR)"
-          value={stats ? formatNumber(stats.totalValue, 2) : '—'}
-          subtitle="Total sales order value"
-          icon={DollarSign}
-          color="blue"
-        />
-        <StatCard
-          title="Pending Orders"
-          value={stats?.pendingOrders ?? '—'}
-          subtitle="Orders awaiting fulfillment"
-          icon={ShoppingCart}
-          color="green"
-        />
-        <StatCard
-          title="Reorder Alerts"
-          value={isRawMaterialsLoading ? '—' : formatNumber(belowReorderCount)}
-          subtitle="Items below reorder level"
-          icon={AlertTriangle}
-          color="red"
-        />
+        {isSkuLoading ? (
+          <StatCardSkeleton />
+        ) : (
+          <StatCard
+            title="Total SKUs"
+            value={totalSkusLabel}
+            subtitle="Across all warehouses"
+            icon={Package}
+            color="amber"
+          />
+        )}
+        {isInventoryLoading ? (
+          <StatCardSkeleton />
+        ) : (
+          <StatCard
+            title="Stock Value"
+            value={totalStockValueLabel}
+            subtitle="Quantity sum (placeholder)"
+            icon={DollarSign}
+            color="blue"
+          />
+        )}
+        {isStatsLoading ? (
+          <StatCardSkeleton />
+        ) : (
+          <StatCard
+            title="Pending Orders"
+            value={pendingOrdersLabel}
+            subtitle="Orders awaiting fulfillment"
+            icon={ShoppingCart}
+            color="green"
+          />
+        )}
+        {isRawMaterialsLoading ? (
+          <StatCardSkeleton />
+        ) : (
+          <StatCard
+            title="Reorder Alerts"
+            value={reorderAlertsLabel}
+            subtitle="Items below reorder level"
+            icon={AlertTriangle}
+            color="red"
+          />
+        )}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -202,8 +270,13 @@ function DashboardContent() {
                   ))
                 ) : recentJobs.length === 0 ? (
                   <tr className="border-b border-gray-100 last:border-b-0">
-                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-500">
-                      No production jobs yet.
+                    <td colSpan={5} className="px-5 py-6">
+                      <EmptyState
+                        icon={Factory}
+                        title="No production jobs yet"
+                        description="Recent production activity will appear here."
+                        size="sm"
+                      />
                     </td>
                   </tr>
                 ) : (

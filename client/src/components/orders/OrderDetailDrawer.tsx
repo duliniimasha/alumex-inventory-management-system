@@ -8,6 +8,7 @@ import { useOrders } from '../../hooks/useOrders';
 import { useRoleAccess } from '../../hooks/useRoleAccess';
 import type { OrderChannel, OrderStatus, SalesOrder } from '../../types/sales.types';
 import { formatDateTime, formatNumber, toTitleCase } from '../../utils/formatters';
+import { printElement } from '../../utils/print.utils';
 import Badge from '../ui/Badge';
 import OrderLineManager from './OrderLineManager';
 import OrderStatusFlow from './OrderStatusFlow';
@@ -58,12 +59,6 @@ const typeColorByValue: Record<NonNullable<SalesOrder['customer']>['type'], Badg
   export: 'green',
   government: 'gray',
 };
-
-const printStyles = `@media print {
-  body > *:not(.print-target) { display: none; }
-  .print-target { position: static !important; inset: auto !important; background: white !important; }
-  .print-target .print-hidden { display: none !important; }
-}`;
 
 export default function OrderDetailDrawer({
   orderId,
@@ -234,10 +229,12 @@ export default function OrderDetailDrawer({
     return null;
   }
 
+  const printTargetId = 'order-detail-print';
+
   const drawer = (
     <div
       className={clsx(
-        'print-target fixed inset-0 z-50 flex justify-end transition-opacity duration-300',
+        'fixed inset-0 z-50 flex justify-end transition-opacity duration-300',
         isVisible ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0',
       )}
       onMouseDown={(event) => {
@@ -247,8 +244,8 @@ export default function OrderDetailDrawer({
       }}
       role="presentation"
     >
-      <style>{printStyles}</style>
       <aside
+        id={printTargetId}
         className={clsx(
           'flex h-full w-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out',
           isVisible ? 'translate-x-0' : 'translate-x-full',
@@ -453,7 +450,7 @@ export default function OrderDetailDrawer({
             </button>
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() => printElement(printTargetId, `Sales Order ${headerId}`)}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               <Printer className="h-4 w-4" />

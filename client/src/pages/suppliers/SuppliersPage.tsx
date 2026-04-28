@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { createSupplier, updateSupplier } from '../../api/supplier.api';
@@ -8,6 +8,7 @@ import SupplierForm from '../../components/suppliers/SupplierForm';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import DataTable, { type Column } from '../../components/ui/DataTable';
+import ErrorAlert from '../../components/ui/ErrorAlert';
 import FilterBar from '../../components/ui/FilterBar';
 import Modal from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
@@ -267,10 +268,7 @@ export default function SuppliersPage() {
       </FilterBar>
 
       {error ? (
-        <div className="inline-flex w-full items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{error}</p>
-        </div>
+        <ErrorAlert message={error} onRetry={() => void fetchSuppliers()} />
       ) : null}
 
       <DataTable

@@ -11,6 +11,7 @@ import CustomerDetailCard from '../../components/customers/CustomerDetailCard';
 import CustomerForm from '../../components/customers/CustomerForm';
 import Badge from '../../components/ui/Badge';
 import DataTable, { type Column } from '../../components/ui/DataTable';
+import ErrorAlert from '../../components/ui/ErrorAlert';
 import FilterBar from '../../components/ui/FilterBar';
 import Modal from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
@@ -402,11 +403,7 @@ export default function CustomersPage() {
         </select>
       </FilterBar>
 
-      {error ? (
-        <div className="inline-flex w-full items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <p>{error}</p>
-        </div>
-      ) : null}
+      {error ? <ErrorAlert message={error} /> : null}
 
       <DataTable
         columns={columns}

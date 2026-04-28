@@ -80,6 +80,13 @@ interface ProductListResponse {
   success: boolean;
   message: string;
   data: ProductApiModel[];
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    totalPages?: number;
+  };
+  total?: number;
 }
 
 interface InventoryItemResponse {
@@ -512,9 +519,12 @@ export async function getProducts(filters?: {
 
   const response = await api.get<ProductListResponse>('/products', { params });
   const mappedData = response.data.data.map(toProduct);
-  const page = filters?.page ?? 1;
-  const limit = filters?.limit ?? Math.max(mappedData.length, 1);
-  const total = mappedData.length;
+  const responsePagination = response.data.pagination;
+  const page = responsePagination?.page ?? filters?.page ?? 1;
+  const limit = responsePagination?.limit ?? filters?.limit ?? Math.max(mappedData.length, 1);
+  const total = responsePagination?.total ?? response.data.total ?? mappedData.length;
+  const totalPages = responsePagination?.totalPages
+    ?? (total === 0 ? 1 : Math.ceil(total / Math.max(limit, 1)));
 
   return {
     success: response.data.success,
@@ -524,7 +534,7 @@ export async function getProducts(filters?: {
       page,
       limit,
       total,
-      totalPages: total === 0 ? 1 : Math.ceil(total / limit),
+      totalPages,
     },
   };
 }

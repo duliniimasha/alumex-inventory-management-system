@@ -19,6 +19,7 @@ import {
 import { loginValidators, registerValidators } from './auth/auth.validators';
 import { validateRequest } from './auth/validation.middleware';
 import { AuditLogMiddleware } from './audit/audit-log.middleware';
+import { AuditLogsModule } from './audit/audit-logs.module';
 import { CustomersModule } from './customers/customers.module';
 import { DiesModule } from './dies/dies.module';
 import { EventsModule } from './events/events.module';
@@ -36,11 +37,13 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { PurchaseOrdersModule } from './purchase-orders/purchase-orders.module';
 import { ReturnsModule } from './returns/returns.module';
 import { ShippingDocsModule } from './shipping-docs/shipping-docs.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    AuditLogsModule,
     EventsModule,
     SuppliersModule,
     RawMaterialsModule,
@@ -56,6 +59,7 @@ import { ShippingDocsModule } from './shipping-docs/shipping-docs.module';
     PurchaseOrdersModule,
     ReturnsModule,
     ShippingDocsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

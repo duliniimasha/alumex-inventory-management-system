@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { AlertTriangle, Calendar, Factory, Plus } from 'lucide-react';
+import { Calendar, Factory, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation } from 'react-router-dom';
@@ -12,6 +12,8 @@ import ProductionJobForm from '../../components/production/ProductionJobForm';
 import Badge from '../../components/ui/Badge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import DataTable, { type Column } from '../../components/ui/DataTable';
+import EmptyState from '../../components/ui/EmptyState';
+import ErrorAlert from '../../components/ui/ErrorAlert';
 import FilterBar from '../../components/ui/FilterBar';
 import Modal from '../../components/ui/Modal';
 import PageHeader from '../../components/ui/PageHeader';
@@ -338,6 +340,27 @@ export default function ProductionPage() {
   const emptyState = !isLoading && displayJobs.length === 0;
   const hasAnyJobs = displayJobs.length > 0 || isLoading;
 
+  const resetFilters = () => {
+    setSearchValue('');
+    handleFilterChange('status', '');
+    handleFilterChange('process_type', '');
+    handleFilterChange('from_date', undefined);
+    handleFilterChange('to_date', undefined);
+    handleFilterChange('search', undefined);
+  };
+
+  const emptyStateAction = activeFilterCount > 0
+    ? { label: 'Reset Filters', onClick: resetFilters }
+    : canManageProduction
+      ? { label: 'New Job', onClick: () => setIsCreateOpen(true), icon: Plus }
+      : undefined;
+
+  const emptyStateDescription = activeFilterCount > 0
+    ? 'Try adjusting your filters.'
+    : canManageProduction
+      ? 'Create your first production job.'
+      : 'Production jobs will appear here once available.';
+
   return (
     <section className="space-y-4">
       <PageHeader
@@ -366,14 +389,7 @@ export default function ProductionPage() {
 
       <FilterBar
         activeFilterCount={activeFilterCount}
-        onReset={() => {
-          setSearchValue('');
-          handleFilterChange('status', '');
-          handleFilterChange('process_type', '');
-          handleFilterChange('from_date', undefined);
-          handleFilterChange('to_date', undefined);
-          handleFilterChange('search', undefined);
-        }}
+        onReset={resetFilters}
       >
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700">
@@ -421,59 +437,17 @@ export default function ProductionPage() {
       </FilterBar>
 
       {error ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <div className="inline-flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{error}</p>
-          </div>
-
-          <button
-            type="button"
-            className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-            onClick={() => void fetchJobs()}
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorAlert message={error} onRetry={() => void fetchJobs()} />
       ) : null}
 
       {emptyState ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center">
-          <div className="rounded-full bg-amber-50 p-4 text-amber-500">
-            <Factory className="h-6 w-6" />
-          </div>
-          <p className="text-sm font-semibold text-gray-700">No production jobs found</p>
-          {activeFilterCount > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-500">Try adjusting your filters</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchValue('');
-                  handleFilterChange('status', '');
-                  handleFilterChange('process_type', '');
-                  handleFilterChange('from_date', undefined);
-                  handleFilterChange('to_date', undefined);
-                  handleFilterChange('search', undefined);
-                }}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-              >
-                Reset Filters
-              </button>
-            </div>
-          ) : canManageProduction ? (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-500">Create your first production job</p>
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
-              >
-                <Plus className="h-4 w-4" />
-                New Job
-              </button>
-            </div>
-          ) : null}
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-12">
+          <EmptyState
+            icon={Factory}
+            title="No production jobs found"
+            description={emptyStateDescription}
+            action={emptyStateAction}
+          />
         </div>
       ) : (
         <DataTable
