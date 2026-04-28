@@ -12,6 +12,7 @@ export function useRoleAccess() {
   const canDispatch = ['system_admin', 'warehouse_officer', 'export_coordinator'].includes(currentRole);
   const canCreateOrders = ['system_admin', 'sales_executive', 'export_coordinator'].includes(currentRole);
   const canManageProduction = ['system_admin', 'production_supervisor'].includes(currentRole);
+  const canManageInventory = ['system_admin', 'warehouse_officer', 'export_coordinator'].includes(currentRole);
   const canDoQC = ['system_admin', 'qc_inspector'].includes(currentRole);
   const isReadOnly = isViewer;
 
@@ -24,6 +25,7 @@ export function useRoleAccess() {
     canDispatch,
     canCreateOrders,
     canManageProduction,
+    canManageInventory,
     canDoQC,
     isReadOnly,
     currentRole,

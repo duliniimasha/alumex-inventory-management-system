@@ -79,6 +79,18 @@ export type ProductionJobDetails = Prisma.ProductionJobGetPayload<{
   };
 }>;
 
+export type ProductionJobListItem = Prisma.ProductionJobGetPayload<{
+  include: {
+    material: true;
+    die: true;
+    _count: {
+      select: {
+        qcInspections: true;
+      };
+    };
+  };
+}>;
+
 @Injectable()
 export class ProductionJobsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -113,7 +125,7 @@ export class ProductionJobsService {
 
   async listProductionJobs(
     filters: ProductionJobListFilters,
-  ): Promise<ProductionJob[]> {
+  ): Promise<ProductionJobListItem[]> {
     try {
       const where: Prisma.ProductionJobWhereInput = {
         deletedAt: null,
@@ -142,6 +154,15 @@ export class ProductionJobsService {
       return await this.prisma.productionJob.findMany({
         where,
         orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        include: {
+          material: true,
+          die: true,
+          _count: {
+            select: {
+              qcInspections: true,
+            },
+          },
+        },
       });
     } catch (error) {
       this.handleError(error, 'Failed to list production jobs');

@@ -80,7 +80,23 @@ export default function AppRouter() {
                 </RoleGuard>
               )}
             />
-            <Route path="/inventory" element={<InventoryPage />} />
+            <Route
+              path="/inventory"
+              element={(
+                <RoleGuard
+                  allowedRoles={[
+                    'system_admin',
+                    'warehouse_officer',
+                    'production_supervisor',
+                    'sales_executive',
+                    'export_coordinator',
+                    'management_viewer',
+                  ]}
+                >
+                  <InventoryPage />
+                </RoleGuard>
+              )}
+            />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />

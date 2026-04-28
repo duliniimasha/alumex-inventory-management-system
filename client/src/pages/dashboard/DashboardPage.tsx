@@ -8,10 +8,13 @@ import {
   ShoppingCart,
   Truck,
 } from 'lucide-react';
+import { useMemo } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { useRawMaterials } from '../../hooks/useRawMaterials';
 import { useRoleAccess } from '../../hooks/useRoleAccess';
 import StatCard from '../../components/ui/StatCard';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { formatNumber, toTitleCase } from '../../utils/formatters';
 
 const skeletonStatuses: Array<'pending' | 'in_progress' | 'completed' | 'on_hold'> = [
   'pending',
@@ -53,6 +56,18 @@ function DashboardContent() {
     canViewReports,
     isReadOnly,
   } = useRoleAccess();
+  const {
+    rawMaterials,
+    belowReorderCount,
+    isLoading: isRawMaterialsLoading,
+  } = useRawMaterials();
+
+  const reorderAlerts = useMemo(
+    () => rawMaterials.filter((material) => material.quantity_kg < material.reorder_level),
+    [rawMaterials],
+  );
+
+  const displayedReorderAlerts = reorderAlerts.slice(0, 3);
 
   const quickActions = quickActionCatalog.filter((action) => {
     if (action.key === 'new-order') {
@@ -92,6 +107,7 @@ function DashboardContent() {
           icon={DollarSign}
           color="blue"
         />
+        {/* TODO: Replace with GET /orders?status=pending count once orders API is available. */}
         <StatCard
           title="Pending Orders"
           value="—"
@@ -101,7 +117,7 @@ function DashboardContent() {
         />
         <StatCard
           title="Reorder Alerts"
-          value="—"
+          value={isRawMaterialsLoading ? '—' : formatNumber(belowReorderCount)}
           subtitle="Items below reorder level"
           icon={AlertTriangle}
           color="red"
@@ -158,7 +174,6 @@ function DashboardContent() {
         </article>
 
         <div className="space-y-4">
-          {/* TODO: Wire low stock alerts from GET /inventory/reorder-alerts endpoint. */}
           <article className="rounded-xl bg-white p-5 shadow-sm">
             <header className="mb-4 flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -166,28 +181,45 @@ function DashboardContent() {
             </header>
 
             <ul className="space-y-3">
-              <li className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50/40 p-3">
-                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">Aluminium Billet 6063</p>
-                  <p className="text-xs text-gray-500">Current: 120 kg · Reorder: 300 kg</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50/40 p-3">
-                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">Powder Coating - White Matte</p>
-                  <p className="text-xs text-gray-500">Current: 18 kg · Reorder: 50 kg</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50/40 p-3">
-                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-800">Packaging Sleeve - 3m</p>
-                  <p className="text-xs text-gray-500">Current: 240 pcs · Reorder: 500 pcs</p>
-                </div>
-              </li>
+              {isRawMaterialsLoading ? (
+                <li className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                  Loading reorder alerts...
+                </li>
+              ) : reorderAlerts.length === 0 ? (
+                <li className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                  All raw materials are above reorder level.
+                </li>
+              ) : (
+                displayedReorderAlerts.map((material) => {
+                  const title = material.grade
+                    ? `${toTitleCase(material.material_type)} · ${material.grade}`
+                    : toTitleCase(material.material_type);
+                  const unitLabel = material.unit || 'kg';
+
+                  return (
+                    <li
+                      key={material.id}
+                      className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50/40 p-3"
+                    >
+                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{title}</p>
+                        <p className="text-xs text-gray-500">
+                          Current: {formatNumber(material.quantity_kg)} {unitLabel} · Reorder:{' '}
+                          {formatNumber(material.reorder_level)} {unitLabel}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })
+              )}
             </ul>
+
+            {!isRawMaterialsLoading && reorderAlerts.length > displayedReorderAlerts.length ? (
+              <p className="mt-3 text-xs font-medium text-gray-500">
+                +{formatNumber(reorderAlerts.length - displayedReorderAlerts.length)} more items below reorder level
+              </p>
+            ) : null}
           </article>
 
           {/* TODO: Wire quick-action enablement from role-based permissions endpoint if needed. */}

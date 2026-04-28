@@ -18,6 +18,7 @@ import { ProductionJobsService } from './production-jobs.service';
 import {
   type CreateInspectionDto,
   type CreateProductionJobDto,
+  type ProductionJobListItem,
   type ProductionJobDetails,
   type UpdateProductionJobStatusDto,
 } from './production-jobs.service';
@@ -32,7 +33,7 @@ export class ProductionJobsController {
     @Query('process_type') processTypeRaw?: string,
     @Query('start_date') startDateRaw?: string,
     @Query('end_date') endDateRaw?: string,
-  ): Promise<ApiResponse<ProductionJob[]>> {
+  ): Promise<ApiResponse<ProductionJobListItem[]>> {
     try {
       const startDate = this.parseDateFilter(startDateRaw, 'start_date');
       const endDate = this.parseDateFilter(endDateRaw, 'end_date');

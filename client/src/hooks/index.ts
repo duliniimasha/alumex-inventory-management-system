@@ -1,9 +1,12 @@
 export { useAuth } from './useAuth';
 export { useClickOutside } from './useClickOutside';
 export { useDebounce } from './useDebounce';
+export { useInventory } from './useInventory';
 export { usePageTitle } from './usePageTitle';
 export { useProductionJobs } from './useProductionJobs';
 export { useQcInspections } from './useQcInspections';
 export { useRawMaterials } from './useRawMaterials';
 export { useRoleAccess } from './useRoleAccess';
+export { useStockMovements } from './useStockMovements';
+export { useStocktake } from './useStocktake';
 export { useSuppliers } from './useSuppliers';

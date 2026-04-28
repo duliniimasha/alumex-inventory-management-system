@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { AlertTriangle, Calendar, Factory, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useLocation } from 'react-router-dom';
 import { createProductionJob, updateProductionJob } from '../../api/production.api';
 import JobDetailDrawer from '../../components/production/JobDetailDrawer';
 import JobStatusBadge from '../../components/production/JobStatusBadge';
@@ -74,6 +75,8 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 export default function ProductionPage() {
   usePageTitle('Production');
 
+  const location = useLocation();
+
   const { canManageProduction, canDoQC, isAdmin } = useRoleAccess();
   const {
     jobs,
@@ -99,6 +102,16 @@ export default function ProductionPage() {
   const [jobOverrides, setJobOverrides] = useState<Record<string, ProductionJob>>({});
 
   const debouncedSearchValue = useDebounce(searchValue, 400);
+
+  useEffect(() => {
+    if (location.state?.openJobId) {
+      const job = jobs.find((job) => job.id === location.state.openJobId);
+      if (job) {
+        setSelectedJobId(job.id);
+      }
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [jobs, location.pathname, location.state]);
 
   useEffect(() => {
     const normalizedSearchValue = debouncedSearchValue.trim();
