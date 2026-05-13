@@ -126,6 +126,21 @@ The API uses JWT Bearer tokens.
 | POST   | `/auth/logout`   | Yes           | Any authenticated role |
 | GET    | `/auth/me`       | Yes           | Any authenticated role |
 
+### Register request body
+
+Use this JSON body when calling `POST /auth/register`:
+
+```json
+{
+  "name": "test user",
+  "email": "test2user@gmail.com",
+  "password": "test1234567",
+  "role": "procurement_officer",
+  "department": "IT",
+  "is_active": true
+}
+```
+
 ### Role enum values
 
 | Role                    | Notes                                                        |
