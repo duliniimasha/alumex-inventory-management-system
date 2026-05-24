@@ -28,7 +28,7 @@ export default function LoginPage() {
     (location.state as { from?: string } | null)?.from ?? '/dashboard';
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   const {

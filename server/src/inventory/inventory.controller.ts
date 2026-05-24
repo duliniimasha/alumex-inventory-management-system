@@ -12,11 +12,11 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { InventoryItem } from '@prisma/client';
 import { ApiResponse } from '../common/api-response.interface';
 import { INVENTORY_ROUTES } from './inventory.routes';
 import { InventoryService } from './inventory.service';
 import type {
+  InventoryListItem,
   InventoryItemDetails,
   InventoryTransferResult,
   ReceiveInventoryDto,
@@ -34,7 +34,7 @@ export class InventoryController {
     @Query('location_code') locationCode?: string,
     @Query('received_start_date') receivedStartDateRaw?: string,
     @Query('received_end_date') receivedEndDateRaw?: string,
-  ): Promise<ApiResponse<InventoryItem[]>> {
+  ): Promise<ApiResponse<InventoryListItem[]>> {
     try {
       const receivedStartDate = this.parseDateFilter(
         receivedStartDateRaw,

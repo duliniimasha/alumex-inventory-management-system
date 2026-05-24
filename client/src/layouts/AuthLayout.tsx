@@ -2,6 +2,8 @@ import type { PropsWithChildren } from 'react';
 import { Outlet } from 'react-router-dom';
 
 export default function AuthLayout({ children }: PropsWithChildren) {
+  const appName = import.meta.env.VITE_APP_NAME ?? 'ALUMEX IMS';
+
   return (
     <div className="grid min-h-screen md:grid-cols-2">
       <aside className="relative hidden min-h-screen overflow-hidden bg-slate-900 md:flex md:items-center md:justify-center md:p-12">
@@ -21,7 +23,7 @@ export default function AuthLayout({ children }: PropsWithChildren) {
         <div className="relative z-10 max-w-lg">
           <div className="mb-8 h-1.5 w-24 rounded-full bg-amber-500" />
           <h1 className="text-5xl font-extrabold tracking-[0.08em] text-white">
-            ALUMEX IMS
+            {appName}
           </h1>
           <p className="mt-4 text-2xl font-semibold text-slate-200">
             Inventory Management System

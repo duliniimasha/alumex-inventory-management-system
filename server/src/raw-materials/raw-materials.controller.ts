@@ -29,8 +29,10 @@ export class RawMaterialsController {
   async listRawMaterials(
     @Query('material_type') materialType?: string,
     @Query('grade') grade?: string,
+    @Query('search') search?: string,
+    @Query('supplier_id') supplierId?: string,
     @Query('below_reorder_level') belowReorderLevelRaw?: string,
-  ): Promise<ApiResponse<RawMaterial[]>> {
+  ): Promise<ApiResponse<RawMaterialWithSupplier[]>> {
     try {
       const belowReorderLevel = this.parseBooleanFilter(
         belowReorderLevelRaw,
@@ -40,6 +42,8 @@ export class RawMaterialsController {
       const rawMaterials = await this.rawMaterialsService.listRawMaterials({
         materialType,
         grade,
+        search,
+        supplierId,
         belowReorderLevel,
       });
 

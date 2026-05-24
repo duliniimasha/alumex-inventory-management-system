@@ -23,6 +23,7 @@ interface RoleAccessConfig {
 
 interface StockSummaryRow {
   category: string;
+  total_items: number;
   total_quantity: number;
   total_value: number;
 }
@@ -37,6 +38,7 @@ interface AgingStockRow {
   reserved_quantity: number;
   warehouse_zone: string;
   location_code: string;
+  unit: string;
   received_at: Date;
   last_moved_at: Date;
   days_since_last_movement: number;
@@ -44,8 +46,10 @@ interface AgingStockRow {
 
 interface TurnoverRow {
   category: string;
+  opening_qty: number;
+  received_qty: number;
   dispatched_qty: number;
-  avg_inventory_qty: number;
+  closing_qty: number;
   turnover_ratio: number;
 }
 
@@ -96,7 +100,7 @@ const ROLE_ACCESS: Record<string, RoleAccessConfig> = {
     relevantRoles: [Role.PRODUCTION_SUPERVISOR, Role.QC_INSPECTOR],
   },
   sales: {
-    relevantRoles: [Role.SALES_EXECUTIVE],
+    relevantRoles: [Role.SALES_EXECUTIVE, Role.EXPORT_COORDINATOR],
   },
   reorder: {
     relevantRoles: [Role.PROCUREMENT_OFFICER],
@@ -118,7 +122,10 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.inventory.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.inventory.relevantRoles,
+      );
 
       const stockDateFilter = this.buildDateFilterSql(
         'i.received_at',
@@ -129,6 +136,7 @@ export class ReportsService {
       const rows = await this.prisma.$queryRaw<StockSummaryRow[]>(Prisma.sql`
         SELECT
           p.category AS category,
+          COUNT(DISTINCT i.item_id)::int AS total_items,
           COALESCE(SUM(i.quantity), 0)::double precision AS total_quantity,
           COALESCE(
             SUM(i.quantity * COALESCE(price.avg_unit_price, 0)),
@@ -161,19 +169,23 @@ export class ReportsService {
       return {
         summary: {
           categories: rows.length,
+          totalItems: rows.reduce((acc, row) => acc + row.total_items, 0),
           totalQuantity: rows.reduce((acc, row) => acc + row.total_quantity, 0),
           totalValue: rows.reduce((acc, row) => acc + row.total_value, 0),
           belowReorderLevelCount,
         },
         chartData: rows.map((row) => ({
           category: row.category,
+          totalItems: row.total_items,
           totalQuantity: row.total_quantity,
           totalValue: row.total_value,
         })),
         tableData: rows.map((row) => ({
           category: row.category,
+          totalItems: row.total_items,
           totalQuantity: row.total_quantity,
           totalValue: row.total_value,
+          belowReorderCount: 0,
         })),
       };
     } catch (error) {
@@ -187,9 +199,13 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.inventory.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.inventory.relevantRoles,
+      );
 
-      const safeDays = Number.isFinite(days) && days > 0 ? Math.floor(days) : 90;
+      const safeDays =
+        Number.isFinite(days) && days > 0 ? Math.floor(days) : 90;
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - safeDays);
 
@@ -210,6 +226,7 @@ export class ReportsService {
           i.reserved_quantity,
           i.warehouse_zone,
           i.location_code,
+          p.unit,
           i.received_at,
           COALESCE(MAX(sm.moved_at), i.received_at) AS last_moved_at,
           EXTRACT(
@@ -230,6 +247,7 @@ export class ReportsService {
           i.reserved_quantity,
           i.warehouse_zone,
           i.location_code,
+          p.unit,
           i.received_at
         HAVING COALESCE(MAX(sm.moved_at), i.received_at) < ${cutoffDate}
         ORDER BY last_moved_at ASC
@@ -258,6 +276,7 @@ export class ReportsService {
           reservedQuantity: row.reserved_quantity,
           warehouseZone: row.warehouse_zone,
           locationCode: row.location_code,
+          unit: row.unit,
           receivedAt: row.received_at,
           lastMovedAt: row.last_moved_at,
           daysSinceLastMovement: row.days_since_last_movement,
@@ -273,7 +292,10 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.inventory.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.inventory.relevantRoles,
+      );
 
       const normalizedRange = this.normalizeDateRange(dateRange, 90);
 
@@ -300,6 +322,18 @@ export class ReportsService {
             COALESCE(
               SUM(
                 CASE
+                  WHEN sm.movement_type IN ('RECEIVE', 'TRANSFER_IN', 'RETURN')
+                    AND sm.moved_at >= ${normalizedRange.fromDate}
+                    AND sm.moved_at <= ${normalizedRange.toDate}
+                  THEN ABS(sm.quantity)
+                  ELSE 0
+                END
+              ),
+              0
+            )::double precision AS received_qty,
+            COALESCE(
+              SUM(
+                CASE
                   WHEN sm.movement_type = 'DISPATCH'
                     AND sm.moved_at >= ${normalizedRange.fromDate}
                     AND sm.moved_at <= ${normalizedRange.toDate}
@@ -316,16 +350,14 @@ export class ReportsService {
         )
         SELECT
           ci.category,
+          (
+            COALESCE(ci.current_qty, 0) - COALESCE(mo.delta_after_from, 0)
+          )::double precision AS opening_qty,
+          COALESCE(mo.received_qty, 0)::double precision AS received_qty,
           COALESCE(mo.dispatched_qty, 0)::double precision AS dispatched_qty,
           (
-            (
-              COALESCE(ci.current_qty, 0) - COALESCE(mo.delta_after_from, 0)
-            )
-            +
-            (
-              COALESCE(ci.current_qty, 0) - COALESCE(mo.delta_after_to, 0)
-            )
-          ) / 2.0 AS avg_inventory_qty,
+            COALESCE(ci.current_qty, 0) - COALESCE(mo.delta_after_to, 0)
+          )::double precision AS closing_qty,
           CASE
             WHEN (
               (
@@ -364,10 +396,16 @@ export class ReportsService {
           fromDate: normalizedRange.fromDate,
           toDate: normalizedRange.toDate,
           categories: rows.length,
+          totalOpeningQty: rows.reduce((acc, row) => acc + row.opening_qty, 0),
+          totalReceivedQty: rows.reduce(
+            (acc, row) => acc + row.received_qty,
+            0,
+          ),
           totalDispatchedQty: rows.reduce(
             (acc, row) => acc + row.dispatched_qty,
             0,
           ),
+          totalClosingQty: rows.reduce((acc, row) => acc + row.closing_qty, 0),
           averageTurnoverRatio:
             rows.length === 0
               ? 0
@@ -380,8 +418,10 @@ export class ReportsService {
         })),
         tableData: rows.map((row) => ({
           category: row.category,
+          openingQty: row.opening_qty,
+          receivedQty: row.received_qty,
           dispatchedQty: row.dispatched_qty,
-          avgInventoryQty: row.avg_inventory_qty,
+          closingQty: row.closing_qty,
           turnoverRatio: row.turnover_ratio,
         })),
       };
@@ -395,7 +435,10 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.production.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.production.relevantRoles,
+      );
 
       const where: Prisma.ProductionJobWhereInput = {
         deletedAt: null,
@@ -419,6 +462,10 @@ export class ReportsService {
         _count: {
           _all: true,
         },
+        _sum: {
+          inputQtyKg: true,
+          outputQtyKg: true,
+        },
         orderBy: [{ processType: 'asc' }, { status: 'asc' }],
       });
 
@@ -433,11 +480,15 @@ export class ReportsService {
           processType: row.processType,
           status: row.status,
           count: row._count._all,
+          totalInputKg: row._sum.inputQtyKg ?? 0,
+          totalOutputKg: row._sum.outputQtyKg ?? 0,
         })),
         tableData: grouped.map((row) => ({
           processType: row.processType,
           status: row.status,
           count: row._count._all,
+          totalInputKg: row._sum.inputQtyKg ?? 0,
+          totalOutputKg: row._sum.outputQtyKg ?? 0,
         })),
       };
     } catch (error) {
@@ -450,7 +501,10 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.production.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.production.relevantRoles,
+      );
 
       const inspectedFilter = this.buildDateFilterSql(
         'qi.inspected_at',
@@ -462,22 +516,22 @@ export class ReportsService {
         SELECT
           pj.process_type,
           COALESCE(
-            SUM(CASE WHEN qi.status = ${QcStatus.PASS} THEN 1 ELSE 0 END),
+            SUM(CASE WHEN qi.status::text = ${QcStatus.PASS} THEN 1 ELSE 0 END),
             0
           )::int AS pass_count,
           COALESCE(
-            SUM(CASE WHEN qi.status = ${QcStatus.HOLD} THEN 1 ELSE 0 END),
+            SUM(CASE WHEN qi.status::text = ${QcStatus.HOLD} THEN 1 ELSE 0 END),
             0
           )::int AS hold_count,
           COALESCE(
-            SUM(CASE WHEN qi.status = ${QcStatus.REJECT} THEN 1 ELSE 0 END),
+            SUM(CASE WHEN qi.status::text = ${QcStatus.REJECT} THEN 1 ELSE 0 END),
             0
           )::int AS reject_count,
           CASE
             WHEN COALESCE(
               SUM(
                 CASE
-                  WHEN qi.status IN (${QcStatus.PASS}, ${QcStatus.HOLD}, ${QcStatus.REJECT})
+                  WHEN qi.status::text IN (${QcStatus.PASS}, ${QcStatus.HOLD}, ${QcStatus.REJECT})
                   THEN 1
                   ELSE 0
                 END
@@ -486,11 +540,11 @@ export class ReportsService {
             ) = 0
             THEN 0
             ELSE (
-              SUM(CASE WHEN qi.status = ${QcStatus.PASS} THEN 1 ELSE 0 END)::double precision
+              SUM(CASE WHEN qi.status::text = ${QcStatus.PASS} THEN 1 ELSE 0 END)::double precision
               /
               SUM(
                 CASE
-                  WHEN qi.status IN (${QcStatus.PASS}, ${QcStatus.HOLD}, ${QcStatus.REJECT})
+                  WHEN qi.status::text IN (${QcStatus.PASS}, ${QcStatus.HOLD}, ${QcStatus.REJECT})
                   THEN 1
                   ELSE 0
                 END
@@ -511,7 +565,8 @@ export class ReportsService {
           toDate: dateRange.toDate,
           processTypes: rows.length,
           totalInspections: rows.reduce(
-            (acc, row) => acc + row.pass_count + row.hold_count + row.reject_count,
+            (acc, row) =>
+              acc + row.pass_count + row.hold_count + row.reject_count,
             0,
           ),
           overallPassRatePct: this.computeOverallPassRate(rows),
@@ -609,7 +664,8 @@ export class ReportsService {
       };
 
       if (dateRange.fromDate || dateRange.toDate) {
-        const dispatchDateFilter: Prisma.DateTimeNullableFilter<'SalesOrder'> = {};
+        const dispatchDateFilter: Prisma.DateTimeNullableFilter<'SalesOrder'> =
+          {};
 
         if (dateRange.fromDate) {
           dispatchDateFilter.gte = dateRange.fromDate;
@@ -621,7 +677,7 @@ export class ReportsService {
 
         where.order = {
           dispatchDate: dispatchDateFilter,
-        }
+        };
       }
 
       const grouped = await this.prisma.orderLine.groupBy({
@@ -629,6 +685,9 @@ export class ReportsService {
         where,
         _sum: {
           qtyDispatched: true,
+        },
+        _count: {
+          _all: true,
         },
         orderBy: {
           _sum: {
@@ -666,7 +725,9 @@ export class ReportsService {
         },
       });
 
-      const productById = new Map(products.map((product) => [product.id, product]));
+      const productById = new Map(
+        products.map((product) => [product.id, product]),
+      );
 
       const tableData = grouped.map((row, index) => {
         const product = productById.get(row.productId);
@@ -679,6 +740,7 @@ export class ReportsService {
           category: product?.category ?? 'Unknown',
           unit: product?.unit ?? 'unit',
           dispatchedQty: row._sum.qtyDispatched ?? 0,
+          orderCount: row._count._all,
         };
       });
 
@@ -709,7 +771,10 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.reorder.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.reorder.relevantRoles,
+      );
 
       const alerts = await this.prisma.rawMaterial.findMany({
         where: {
@@ -780,7 +845,10 @@ export class ReportsService {
     actorUserId?: string,
   ): Promise<DashboardReportData> {
     try {
-      await this.assertRoleAccess(actorUserId, ROLE_ACCESS.export.relevantRoles);
+      await this.assertRoleAccess(
+        actorUserId,
+        ROLE_ACCESS.export.relevantRoles,
+      );
 
       const orderWhere: Prisma.SalesOrderWhereInput = {
         id: orderId,
@@ -997,7 +1065,9 @@ export class ReportsService {
     const clauses: Prisma.Sql[] = [];
 
     if (dateRange.fromDate) {
-      clauses.push(Prisma.sql`${Prisma.raw(fieldName)} >= ${dateRange.fromDate}`);
+      clauses.push(
+        Prisma.sql`${Prisma.raw(fieldName)} >= ${dateRange.fromDate}`,
+      );
     }
 
     if (dateRange.toDate) {
@@ -1026,7 +1096,9 @@ export class ReportsService {
     return { fromDate, toDate };
   }
 
-  private mapSalesPeriodToSqlUnit(period: SalesPeriod): 'day' | 'week' | 'month' {
+  private mapSalesPeriodToSqlUnit(
+    period: SalesPeriod,
+  ): 'day' | 'week' | 'month' {
     switch (period) {
       case 'daily':
         return 'day';
@@ -1035,7 +1107,9 @@ export class ReportsService {
       case 'monthly':
         return 'month';
       default:
-        throw new BadRequestException('period must be one of: daily, weekly, monthly');
+        throw new BadRequestException(
+          'period must be one of: daily, weekly, monthly',
+        );
     }
   }
 

@@ -49,6 +49,11 @@ export interface InventoryTransferResult {
   destinationItem: InventoryItem;
 }
 
+export type InventoryListItem = InventoryItem & {
+  product: Product;
+  job: ProductionJob | null;
+};
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -56,7 +61,7 @@ export class InventoryService {
     private readonly stockMovementsService: StockMovementsService,
   ) {}
 
-  async listInventory(filters: InventoryListFilters): Promise<InventoryItem[]> {
+  async listInventory(filters: InventoryListFilters): Promise<InventoryListItem[]> {
     try {
       const where: Prisma.InventoryItemWhereInput = {};
 
@@ -93,6 +98,10 @@ export class InventoryService {
       return await this.prisma.inventoryItem.findMany({
         where,
         orderBy: [{ receivedAt: 'desc' }, { id: 'desc' }],
+        include: {
+          product: true,
+          job: true,
+        },
       });
     } catch (error) {
       this.handleError(error, 'Failed to list inventory items');

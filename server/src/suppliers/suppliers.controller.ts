@@ -18,7 +18,7 @@ import type {
   CreateSupplierDto,
   UpdateSupplierDto,
 } from './suppliers.service';
-import { SUPPLIERS_ROUTES } from './suppliers.routes';
+import { SUPPLIERS_ROUTES, type SupplierListFilters } from './suppliers.routes';
 
 @Controller(SUPPLIERS_ROUTES.BASE)
 export class SuppliersController {
@@ -28,11 +28,19 @@ export class SuppliersController {
   async listSuppliers(
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+    @Query('search') search?: string,
+    @Query('country') country?: string,
   ): Promise<ApiResponse<Supplier[]>> {
     try {
+      const filters: SupplierListFilters = {
+        search,
+        country,
+      };
+
       const { suppliers, pagination } = await this.suppliersService.listSuppliers(
         page,
         limit,
+        filters,
       );
 
       return {

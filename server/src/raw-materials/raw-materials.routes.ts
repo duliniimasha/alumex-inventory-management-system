@@ -6,5 +6,7 @@ export const RAW_MATERIALS_ROUTES = {
 export interface RawMaterialListFilters {
   materialType?: string;
   grade?: string;
+  search?: string;
+  supplierId?: string;
   belowReorderLevel?: boolean;
 }

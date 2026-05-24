@@ -26,13 +26,18 @@ const JOB_STATUSES = {
 const USER_UPDATEABLE_STATUSES = new Set<string>([
   JOB_STATUSES.PENDING,
   JOB_STATUSES.IN_PROGRESS,
+  JOB_STATUSES.ON_HOLD,
   JOB_STATUSES.COMPLETED,
   JOB_STATUSES.CANCELLED,
 ]);
 
 const TRANSITIONS: Record<string, string[]> = {
   [JOB_STATUSES.PENDING]: [JOB_STATUSES.IN_PROGRESS, JOB_STATUSES.CANCELLED],
-  [JOB_STATUSES.IN_PROGRESS]: [JOB_STATUSES.COMPLETED, JOB_STATUSES.CANCELLED],
+  [JOB_STATUSES.IN_PROGRESS]: [
+    JOB_STATUSES.COMPLETED,
+    JOB_STATUSES.ON_HOLD,
+    JOB_STATUSES.CANCELLED,
+  ],
   [JOB_STATUSES.ON_HOLD]: [JOB_STATUSES.IN_PROGRESS, JOB_STATUSES.CANCELLED],
   [JOB_STATUSES.COMPLETED]: [],
   [JOB_STATUSES.CANCELLED]: [],
@@ -50,7 +55,8 @@ export interface CreateProductionJobDto {
 }
 
 export interface UpdateProductionJobStatusDto {
-  status: string;
+  status?: string;
+  outputQtyKg?: number;
 }
 
 export interface CreateInspectionDto {
@@ -70,6 +76,18 @@ export type ProductionJobDetails = Prisma.ProductionJobGetPayload<{
     die: true;
     qcInspections: true;
     inventoryItems: true;
+  };
+}>;
+
+export type ProductionJobListItem = Prisma.ProductionJobGetPayload<{
+  include: {
+    material: true;
+    die: true;
+    _count: {
+      select: {
+        qcInspections: true;
+      };
+    };
   };
 }>;
 
@@ -107,7 +125,7 @@ export class ProductionJobsService {
 
   async listProductionJobs(
     filters: ProductionJobListFilters,
-  ): Promise<ProductionJob[]> {
+  ): Promise<ProductionJobListItem[]> {
     try {
       const where: Prisma.ProductionJobWhereInput = {
         deletedAt: null,
@@ -136,6 +154,15 @@ export class ProductionJobsService {
       return await this.prisma.productionJob.findMany({
         where,
         orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        include: {
+          material: true,
+          die: true,
+          _count: {
+            select: {
+              qcInspections: true,
+            },
+          },
+        },
       });
     } catch (error) {
       this.handleError(error, 'Failed to list production jobs');
@@ -235,9 +262,18 @@ export class ProductionJobsService {
     body: UpdateProductionJobStatusDto,
   ): Promise<ProductionJobDetails> {
     try {
-      const targetStatus = this.normalizeJobStatus(body.status);
+      const statusRaw = typeof body.status === 'string' ? body.status : undefined;
+      const hasStatus = Boolean(statusRaw?.trim());
+      const targetStatus = hasStatus && statusRaw ? this.normalizeJobStatus(statusRaw) : undefined;
 
-      if (!USER_UPDATEABLE_STATUSES.has(targetStatus)) {
+      if (
+        body.outputQtyKg !== undefined &&
+        (!Number.isFinite(body.outputQtyKg) || body.outputQtyKg <= 0)
+      ) {
+        throw new BadRequestException('output_qty_kg must be greater than zero');
+      }
+
+      if (hasStatus && targetStatus && !USER_UPDATEABLE_STATUSES.has(targetStatus)) {
         throw new BadRequestException(
           'Status must be one of pending, in_progress, completed, cancelled',
         );
@@ -261,26 +297,32 @@ export class ProductionJobsService {
         }
 
         const currentStatus = this.normalizeJobStatus(job.status);
+        const nextStatus = targetStatus ?? currentStatus;
 
-        if (currentStatus === targetStatus) {
-          return this.getProductionJobByIdWithClient(tx, id);
-        }
-
-        if (!this.canTransition(currentStatus, targetStatus)) {
+        if (hasStatus && !this.canTransition(currentStatus, nextStatus)) {
           throw new BadRequestException(
-            `Cannot transition status from ${currentStatus} to ${targetStatus}`,
+            `Cannot transition status from ${currentStatus} to ${nextStatus}`,
           );
         }
 
-        const updateData: Prisma.ProductionJobUpdateInput = {
-          status: targetStatus,
-        };
+        const updateData: Prisma.ProductionJobUpdateInput = {};
 
-        if (targetStatus === JOB_STATUSES.IN_PROGRESS && !job.startedAt) {
+        if (hasStatus) {
+          updateData.status = nextStatus;
+        }
+
+        if (body.outputQtyKg !== undefined) {
+          updateData.outputQtyKg = body.outputQtyKg;
+        }
+
+        if (nextStatus === JOB_STATUSES.IN_PROGRESS && !job.startedAt) {
           updateData.startedAt = new Date();
         }
 
-        if (targetStatus === JOB_STATUSES.COMPLETED) {
+        if (
+          nextStatus === JOB_STATUSES.COMPLETED &&
+          currentStatus !== JOB_STATUSES.COMPLETED
+        ) {
           const hasPassedInspection = job.qcInspections.some(
             (inspection) => inspection.status === QcStatus.PASS,
           );
@@ -291,7 +333,14 @@ export class ProductionJobsService {
             );
           }
 
-          if (!job.outputQtyKg || job.outputQtyKg <= 0) {
+          const nextOutputQtyKg = body.outputQtyKg ?? job.outputQtyKg;
+
+          if (
+            nextOutputQtyKg === undefined ||
+            nextOutputQtyKg === null ||
+            !Number.isFinite(nextOutputQtyKg) ||
+            nextOutputQtyKg <= 0
+          ) {
             throw new BadRequestException(
               'output_qty_kg must be greater than zero before completing a job',
             );
@@ -321,7 +370,7 @@ export class ProductionJobsService {
               data: {
                 productId: product.id,
                 jobId: job.id,
-                quantity: job.outputQtyKg,
+                quantity: nextOutputQtyKg,
                 locationCode: 'FG-DEFAULT',
                 warehouseZone: 'FINISHED_GOODS',
               },
@@ -329,8 +378,15 @@ export class ProductionJobsService {
           }
         }
 
-        if (targetStatus === JOB_STATUSES.CANCELLED) {
+        if (
+          nextStatus === JOB_STATUSES.CANCELLED &&
+          currentStatus !== JOB_STATUSES.CANCELLED
+        ) {
           updateData.completedAt = null;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+          return this.getProductionJobByIdWithClient(tx, id);
         }
 
         await tx.productionJob.update({

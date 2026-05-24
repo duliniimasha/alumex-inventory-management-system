@@ -20,6 +20,8 @@ export interface CreateCustomerDto {
   type?: CustomerType;
   country?: string;
   contactEmail?: string;
+  contactPhone?: string;
+  address?: string;
 }
 
 export interface UpdateCustomerDto extends Partial<CreateCustomerDto> {}
@@ -63,8 +65,33 @@ export class CustomersService {
         where.ownerUserId = filters.ownerUserId;
       }
 
+      const searchTerm = filters.search?.trim();
+      if (searchTerm) {
+        where.OR = [
+          {
+            name: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+          },
+          {
+            contactEmail: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+          },
+        ];
+      }
+
       return await this.prisma.customer.findMany({
         where,
+        include: {
+          _count: {
+            select: {
+              salesOrders: true,
+            },
+          },
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       });
     } catch (error) {
@@ -158,6 +185,8 @@ export class CustomersService {
           type: body.type,
           country: body.country?.trim() || null,
           contactEmail: body.contactEmail?.trim() || null,
+          contactPhone: body.contactPhone?.trim() || null,
+          address: body.address?.trim() || null,
           ownerUserId: ownerUserId?.trim() || null,
         },
       });
@@ -191,6 +220,14 @@ export class CustomersService {
             body.contactEmail !== undefined
               ? (body.contactEmail.trim() || null)
               : undefined,
+          contactPhone:
+            body.contactPhone !== undefined
+              ? (body.contactPhone.trim() || null)
+              : undefined,
+          address:
+            body.address !== undefined
+              ? (body.address.trim() || null)
+              : undefined,
         },
       });
     } catch (error) {
@@ -212,7 +249,7 @@ export class CustomersService {
   private validateCustomerType(value: string): void {
     if (!CUSTOMER_TYPE_SET.has(value)) {
       throw new BadRequestException(
-        'type must be one of: B2B, fabricator, export, retail',
+        'type must be one of: B2B, fabricator, export, retail, government',
       );
     }
   }
