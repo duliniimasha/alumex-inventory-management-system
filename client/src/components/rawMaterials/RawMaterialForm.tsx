@@ -19,7 +19,7 @@ const rawMaterialSchema = z.object({
   quantity_kg: z.number({ invalid_type_error: 'Must be a number' })
     .positive('Must be greater than 0')
     .max(999999),
-  unit: z.enum(['ft', 'pcs', 'kg', 'litre', 'piece', 'metre', 'set']),
+  unit: z.enum(['kg', 'litre', 'piece', 'metre', 'set']),
   reorder_level: z.number({ invalid_type_error: 'Must be a number' })
     .nonnegative('Must be 0 or more'),
   supplier_id: z.string().min(1, 'Supplier is required'),
@@ -175,11 +175,11 @@ export default function RawMaterialForm({
         <FormField
           label="Grade"
           error={errors.grade?.message}
-          hint="Alloy grade, profile or product code"
+          hint="Alloy grade or specification code"
         >
           <input
             type="text"
-            placeholder="e.g. AA6063, IronBar-12mm, Mortise-SN"
+            placeholder="e.g. AA6063, T5"
             className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-400/50"
             {...register('grade')}
             disabled={isSubmitting}
@@ -212,8 +212,6 @@ export default function RawMaterialForm({
             <option value="" disabled>
               Select unit
             </option>
-            <option value="ft">ft (feet)</option>
-            <option value="pcs">pcs (pieces)</option>
             <option value="kg">kg</option>
             <option value="litre">litre</option>
             <option value="piece">piece</option>

@@ -306,7 +306,6 @@ export function useOrders() {
     productsForSelect,
     fetchOrders,
     fetchStats,
-    fetchCustomersForSelect,
     handleFilterChange,
     handlePageChange,
     handleDispatch,

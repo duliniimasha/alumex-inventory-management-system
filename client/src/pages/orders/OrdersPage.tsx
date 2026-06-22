@@ -204,7 +204,6 @@ export default function OrdersPage() {
     productsForSelect,
     fetchOrders,
     fetchStats,
-    fetchCustomersForSelect,
     handleFilterChange,
     handlePageChange,
   } = useOrders();
@@ -667,7 +666,6 @@ export default function OrdersPage() {
           customersForSelect={customersForSelect}
           productsForSelect={productsForSelect}
           initialCustomerId={prefillCustomerId ?? undefined}
-          onCustomerCreated={fetchCustomersForSelect}
           onCancel={() => setIsCreateOpen(false)}
           onSuccess={async (createdOrder) => {
             setIsCreateOpen(false);
