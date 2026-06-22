@@ -59,7 +59,12 @@ VALUES
   ('4d20f9df-ae71-49b4-8fd1-4046bc66ce02', 'COATING'::"MaterialCategory", 'Powder Coating - Matte Black', 'RAL 9005', 980, 'kg', 500, 'Sri Lanka', '3f2b21ff-c47e-454f-a5dd-f07f8a7ec122', NULL),
   ('2aa15be6-6287-4f28-a9c5-3e8f8da4e98e', 'TRADED_GOOD'::"MaterialCategory", 'Packaging Film Roll', 'PF-Standard', 250, 'kg', 150, 'Sri Lanka', '3f2b21ff-c47e-454f-a5dd-f07f8a7ec122', NULL),
   ('ad3898ad-a1e3-4734-bf20-8f140a6a5cf6', 'CHEMICAL'::"MaterialCategory", 'Anodizing Sealant', 'AS-Prime', 320, 'kg', 250, 'Malaysia', '904faf17-8de4-4237-96e2-cdd3eff8eb11', NULL),
-  ('66f3005d-9e7f-4b99-a24c-f58d88f3422d', 'ALLOY'::"MaterialCategory", 'Silicon Additive', 'Si-98', 140, 'kg', 175, 'India', 'd9bf9f0a-9c4a-42a8-a3c6-8ec14c75725f', '2026-02-10T00:00:00.000Z')
+  ('66f3005d-9e7f-4b99-a24c-f58d88f3422d', 'ALLOY'::"MaterialCategory", 'Silicon Additive', 'Si-98', 140, 'kg', 175, 'India', 'd9bf9f0a-9c4a-42a8-a3c6-8ec14c75725f', '2026-02-10T00:00:00.000Z'),
+  -- Bar & hardware stock (bars measured in feet, locks & holders in pieces)
+  ('c3c3c3c3-0000-4000-8000-000000000001', 'TRADED_GOOD'::"MaterialCategory", 'Aluminium Bar Stock', 'AluBar-1in-SQ', 1200, 'ft', 600, 'UAE', '8f7d4033-f9e4-4ec6-bfd6-d2db3ff646a1', NULL),
+  ('c3c3c3c3-0000-4000-8000-000000000002', 'TRADED_GOOD'::"MaterialCategory", 'Iron Bar Stock', 'IronBar-12mm-RND', 900, 'ft', 500, 'India', 'd9bf9f0a-9c4a-42a8-a3c6-8ec14c75725f', NULL),
+  ('c3c3c3c3-0000-4000-8000-000000000003', 'TRADED_GOOD'::"MaterialCategory", 'Door Lock Set', 'Mortise-SN', 140, 'pcs', 100, 'China', '904faf17-8de4-4237-96e2-cdd3eff8eb11', NULL),
+  ('c3c3c3c3-0000-4000-8000-000000000004', 'TRADED_GOOD'::"MaterialCategory", 'Window Holder Stay', 'WinStay-PC', 220, 'pcs', 120, 'Sri Lanka', '3f2b21ff-c47e-454f-a5dd-f07f8a7ec122', NULL)
 ON CONFLICT (material_id) DO UPDATE SET
   material_category = EXCLUDED.material_category,
   material_type = EXCLUDED.material_type,
@@ -105,11 +110,21 @@ INSERT INTO products (
   unit
 )
 VALUES
-  ('071d36d3-20f8-4f5c-9fe2-208f16f9c421', 'ALX-ARCH-001', 'Architectural Hollow Profile', 'Architectural', 'Mill Finish', 6000, 'kg'),
-  ('1fe08c28-3318-4f06-91cc-38551e5f73d3', 'ALX-HOME-015', 'Household Window Frame Set', 'Household', 'Powder Coated', 5400, 'kg'),
-  ('52276ed7-44e1-4f94-a0ca-a96f4eb91595', 'ALX-HARD-208', 'Hardware U Channel', 'Hardware', 'Anodized', 4500, 'kg'),
-  ('810b9f7e-a56e-4210-bf4c-28f05f4ccf4a', 'ALX-IND-312', 'Industrial Curtain Wall Mullion', 'Industrial', 'PVDF Coated', 6000, 'kg'),
-  ('a85af70c-f8d7-4c20-af9d-4cd3de246992', 'ALX-TRADE-410', 'Trading Export Assembly', 'Trading', 'Mill Finish', 5000, 'kg')
+  -- Aluminium bars / profiles (sold by length, measured in feet)
+  ('071d36d3-20f8-4f5c-9fe2-208f16f9c421', 'ALX-ARCH-001', 'Aluminium Bar - Square Hollow', 'Architectural', 'Mill Finish', 6096, 'ft'),
+  ('1fe08c28-3318-4f06-91cc-38551e5f73d3', 'ALX-HOME-015', 'Aluminium Window Frame Bar', 'Household', 'Powder Coated', 5486, 'ft'),
+  ('52276ed7-44e1-4f94-a0ca-a96f4eb91595', 'ALX-HARD-208', 'Aluminium U-Channel Bar', 'Hardware', 'Anodized', 4572, 'ft'),
+  ('810b9f7e-a56e-4210-bf4c-28f05f4ccf4a', 'ALX-IND-312', 'Aluminium Mullion Bar', 'Industrial', 'PVDF Coated', 6096, 'ft'),
+  ('a85af70c-f8d7-4c20-af9d-4cd3de246992', 'ALX-TRADE-410', 'Aluminium Export Bar Bundle', 'Trading', 'Mill Finish', 6096, 'ft'),
+  -- Additional aluminium & iron bars (measured in feet)
+  ('a1a1a1a1-0000-4000-8000-000000000006', 'ALX-ALU-RND', 'Aluminium Bar - Round Rod', 'Industrial', 'Mill Finish', 6096, 'ft'),
+  ('a1a1a1a1-0000-4000-8000-000000000007', 'ALX-IRON-RND', 'Iron Bar - Round', 'Hardware', 'Galvanized', 6096, 'ft'),
+  ('a1a1a1a1-0000-4000-8000-000000000008', 'ALX-IRON-FLT', 'Iron Bar - Flat', 'Industrial', 'Black Oxide', 6096, 'ft'),
+  -- Door locks & window hardware (counted by piece)
+  ('a1a1a1a1-0000-4000-8000-000000000009', 'ALX-LOCK-MORT', 'Mortise Door Lock', 'Hardware', 'Satin Nickel', 0, 'pcs'),
+  ('a1a1a1a1-0000-4000-8000-000000000010', 'ALX-LOCK-CYL', 'Cylindrical Door Lock', 'Hardware', 'Brushed Steel', 0, 'pcs'),
+  ('a1a1a1a1-0000-4000-8000-000000000011', 'ALX-WIN-HLD', 'Window Holder Stay', 'Hardware', 'Powder Coated', 0, 'pcs'),
+  ('a1a1a1a1-0000-4000-8000-000000000012', 'ALX-WIN-LCK', 'Sliding Window Lock', 'Hardware', 'Chrome Plated', 0, 'pcs')
 ON CONFLICT (product_id) DO UPDATE SET
   sku = EXCLUDED.sku,
   name = EXCLUDED.name,
@@ -308,6 +323,106 @@ VALUES
     'export',
     true,
     '2026-04-21T11:30:00.000Z'
+  )
+ON CONFLICT (item_id) DO UPDATE SET
+  product_id = EXCLUDED.product_id,
+  job_id = EXCLUDED.job_id,
+  quantity = EXCLUDED.quantity,
+  reserved_quantity = EXCLUDED.reserved_quantity,
+  location_code = EXCLUDED.location_code,
+  warehouse_zone = EXCLUDED.warehouse_zone,
+  needs_supervisor_review = EXCLUDED.needs_supervisor_review,
+  received_at = EXCLUDED.received_at;
+
+-- Stock on hand for the new bar / hardware products (bars in feet, locks & holders in pieces)
+INSERT INTO inventory_items (
+  item_id,
+  product_id,
+  job_id,
+  quantity,
+  reserved_quantity,
+  location_code,
+  warehouse_zone,
+  needs_supervisor_review,
+  received_at
+)
+VALUES
+  (
+    'b2b2b2b2-0000-4000-8000-000000000006',
+    'a1a1a1a1-0000-4000-8000-000000000006',
+    NULL,
+    480,
+    0,
+    'FG-ALU-RND',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:00:00.000Z'
+  ),
+  (
+    'b2b2b2b2-0000-4000-8000-000000000007',
+    'a1a1a1a1-0000-4000-8000-000000000007',
+    NULL,
+    360,
+    0,
+    'FG-IRON-RND',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:05:00.000Z'
+  ),
+  (
+    'b2b2b2b2-0000-4000-8000-000000000008',
+    'a1a1a1a1-0000-4000-8000-000000000008',
+    NULL,
+    300,
+    0,
+    'FG-IRON-FLT',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:10:00.000Z'
+  ),
+  (
+    'b2b2b2b2-0000-4000-8000-000000000009',
+    'a1a1a1a1-0000-4000-8000-000000000009',
+    NULL,
+    150,
+    0,
+    'FG-LOCK-01',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:15:00.000Z'
+  ),
+  (
+    'b2b2b2b2-0000-4000-8000-000000000010',
+    'a1a1a1a1-0000-4000-8000-000000000010',
+    NULL,
+    90,
+    0,
+    'FG-LOCK-02',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:20:00.000Z'
+  ),
+  (
+    'b2b2b2b2-0000-4000-8000-000000000011',
+    'a1a1a1a1-0000-4000-8000-000000000011',
+    NULL,
+    200,
+    0,
+    'FG-WIN-01',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:25:00.000Z'
+  ),
+  (
+    'b2b2b2b2-0000-4000-8000-000000000012',
+    'a1a1a1a1-0000-4000-8000-000000000012',
+    NULL,
+    75,
+    0,
+    'FG-WIN-02',
+    'FINISHED_GOODS',
+    false,
+    '2026-04-22T10:30:00.000Z'
   )
 ON CONFLICT (item_id) DO UPDATE SET
   product_id = EXCLUDED.product_id,
