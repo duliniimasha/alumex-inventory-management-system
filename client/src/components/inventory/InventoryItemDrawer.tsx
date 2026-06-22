@@ -89,7 +89,11 @@ export default function InventoryItemDrawer({
   const product = item?.product;
   const unitLabel = product?.unit ?? 'units';
   const finishType = product?.finish_type ? toTitleCase(product.finish_type) : '—';
-  const lengthValue = product?.length_mm ? `${product.length_mm} mm` : '—';
+  const lengthValue = product?.length_mm
+    ? unitLabel === 'ft'
+      ? `${(product.length_mm / 304.8).toFixed(1)} ft`
+      : `${product.length_mm} mm`
+    : '—';
   const receivedAt = item?.received_at ? formatDateTime(item.received_at) : '—';
 
   const categoryTone = product?.category
