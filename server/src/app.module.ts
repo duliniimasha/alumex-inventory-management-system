@@ -272,7 +272,6 @@ export class AppModule implements NestModule {
         { path: 'products', method: RequestMethod.GET },
         { path: 'products/:id', method: RequestMethod.GET },
         { path: 'reports/:route', method: RequestMethod.GET },
-        { path: 'reports/:route/:orderId', method: RequestMethod.GET },
       );
 
     consumer
