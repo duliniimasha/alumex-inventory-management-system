@@ -139,7 +139,7 @@ export default function RawMaterialsPage() {
     Number(Boolean(filters.below_reorder_level));
 
   const totalMaterials = pagination?.total ?? rawMaterials.length;
-  const totalStockQuantity = rawMaterials.reduce(
+  const totalStockWeight = rawMaterials.reduce(
     (sum, material) => sum + (Number.isFinite(material.quantity_kg) ? material.quantity_kg : 0),
     0,
   );
@@ -277,7 +277,7 @@ export default function RawMaterialsPage() {
     },
     {
       key: 'quantity_kg',
-      header: 'Quantity',
+      header: 'Qty (kg)',
       sortable: true,
       render: (row) => {
         const hasQuantity = Number.isFinite(row.quantity_kg);
@@ -286,7 +286,7 @@ export default function RawMaterialsPage() {
 
         return (
           <span className={isLowStock ? 'font-semibold text-red-600' : undefined}>
-            {formatNullableNumber(row.quantity_kg)} {row.unit}
+            {formatNullableNumber(row.quantity_kg)}
           </span>
         );
       },
@@ -347,7 +347,7 @@ export default function RawMaterialsPage() {
     <section className="space-y-4">
       <PageHeader
         title="Raw Materials"
-        subtitle="Track billets, bars, chemicals, dies and traded goods inventory"
+        subtitle="Track billets, chemicals, dies and traded goods inventory"
         breadcrumbs={[{ label: 'Raw Materials', path: '/raw-materials' }]}
         actions={canAddOrEdit ? (
           <button
@@ -453,8 +453,8 @@ export default function RawMaterialsPage() {
         </article>
 
         <article className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Stock Quantity</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{formatNullableNumber(totalStockQuantity)}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Stock Weight</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{formatNullableNumber(totalStockWeight)} kg</p>
         </article>
 
         <article className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
@@ -569,8 +569,8 @@ export default function RawMaterialsPage() {
             </div>
 
             <div className="rounded-lg bg-gray-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Quantity</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">{formatNullableNumber(selectedMaterial.quantity_kg)} {selectedMaterial.unit}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Quantity (kg)</p>
+              <p className="mt-1 text-sm font-medium text-gray-800">{formatNullableNumber(selectedMaterial.quantity_kg)}</p>
             </div>
 
             <div className="rounded-lg bg-gray-50 px-3 py-2">
@@ -620,12 +620,12 @@ export default function RawMaterialsPage() {
         {adjustTarget ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-              <p>Current Quantity: <span className="font-semibold">{formatNullableNumber(adjustTarget.quantity_kg)} {adjustTarget.unit}</span></p>
+              <p>Current Quantity: <span className="font-semibold">{formatNullableNumber(adjustTarget.quantity_kg)} kg</span></p>
               <p className="mt-1">Reorder Level: <span className="font-semibold">{formatNullableNumber(adjustTarget.reorder_level)}</span></p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">New Quantity ({adjustTarget.unit})</label>
+              <label className="text-sm font-medium text-gray-700">New Quantity (kg)</label>
               <input
                 type="number"
                 step="any"
