@@ -210,6 +210,7 @@ export default function OrdersPage() {
 
   const [searchValue, setSearchValue] = useState(filters.search ?? '');
   const debouncedSearchValue = useDebounce(searchValue, 400);
+  
 
   const [customerSearch, setCustomerSearch] = useState('');
   const [isCustomerMenuOpen, setIsCustomerMenuOpen] = useState(false);
