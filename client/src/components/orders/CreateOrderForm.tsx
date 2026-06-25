@@ -1,19 +1,24 @@
+import { isAxiosError } from 'axios';
 import clsx from 'clsx';
-import { Globe, Home, Loader2, Plus, ShoppingBag, Trash2 } from 'lucide-react';
+import { ArrowLeft, Globe, Home, Loader2, Plus, ShoppingBag, Trash2, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createOrder, getCustomerById } from '../../api/sales.api';
+import toast from 'react-hot-toast';
+import { createCustomer, createOrder, getCustomerById } from '../../api/sales.api';
 import { getInventoryItems } from '../../api/inventory.api';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import type {
+  CreateCustomerDto,
   CreateOrderDto,
   Customer,
   CustomerType,
   OrderChannel,
   SalesOrder,
+  UpdateCustomerDto,
 } from '../../types/sales.types';
 import { formatNumber } from '../../utils/formatters';
 import { formatCurrency } from '../../utils/sales.utils';
 import CustomerDetailCard from '../customers/CustomerDetailCard';
+import CustomerForm from '../customers/CustomerForm';
 import FormField from '../ui/FormField';
 
 interface CustomerOption {
@@ -41,6 +46,7 @@ interface CreateOrderFormProps {
   initialCustomerId?: string;
   onCancel: () => void;
   onSuccess: (order: SalesOrder) => void;
+  onCustomerCreated?: () => void | Promise<void>;
 }
 
 type Step = 1 | 2 | 3;
@@ -86,6 +92,7 @@ export default function CreateOrderForm({
   initialCustomerId,
   onCancel,
   onSuccess,
+  onCustomerCreated,
 }: CreateOrderFormProps) {
   const [step, setStep] = useState<Step>(1);
   const [customerId, setCustomerId] = useState(() => initialCustomerId ?? '');
@@ -101,6 +108,9 @@ export default function CreateOrderForm({
 
   const [customerDetails, setCustomerDetails] = useState<Customer | null>(null);
   const [isCustomerLoading, setIsCustomerLoading] = useState(false);
+
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
   const [stockChecks, setStockChecks] = useState<Record<string, { available: number; isSufficient: boolean }>>({});
   const [isStockChecking, setIsStockChecking] = useState(false);
@@ -302,6 +312,34 @@ export default function CreateOrderForm({
     setLines((prev) => prev.filter((line) => line.id !== lineId));
   };
 
+  const handleCreateCustomer = async (dto: CreateCustomerDto | UpdateCustomerDto) => {
+    setIsCreatingCustomer(true);
+
+    try {
+      const created = await createCustomer(dto as CreateCustomerDto);
+
+      // Refresh the parent customer list so the new customer is selectable.
+      await onCustomerCreated?.();
+
+      // Auto-select the freshly created customer for this order.
+      setCustomerId(created.id);
+      setCustomerSearch(created.name);
+      setIsCustomerMenuOpen(false);
+      setIsAddingCustomer(false);
+      setFormError(null);
+      toast.success(`Customer "${created.name}" created`);
+    } catch (error) {
+      const message = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message ?? error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to create customer.';
+      toast.error(message);
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!hasValidLines || !customerId || !channel || hasStockIssues) {
       setFormError('Resolve validation issues before placing the order.');
@@ -339,6 +377,34 @@ export default function CreateOrderForm({
 
   const currentStepLabel = step === 1 ? 'Customer & Channel' : step === 2 ? 'Order Lines' : 'Review & Confirm';
 
+  if (isAddingCustomer) {
+    return (
+      <div className="space-y-5">
+        <header className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsAddingCustomer(false)}
+            disabled={isCreatingCustomer}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Back to order"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <p className="text-xs font-semibold uppercase text-gray-400">New Customer</p>
+            <h3 className="text-lg font-semibold text-gray-900">Add a customer for this order</h3>
+          </div>
+        </header>
+
+        <CustomerForm
+          onSubmit={handleCreateCustomer}
+          onCancel={() => setIsAddingCustomer(false)}
+          isSubmitting={isCreatingCustomer}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -361,7 +427,25 @@ export default function CreateOrderForm({
 
       {step === 1 ? (
         <div className="space-y-5">
-          <FormField label="Customer" required>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="inline-flex items-center gap-1 text-sm font-medium text-gray-700">
+                <span>Customer</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustomerMenuOpen(false);
+                  setFormError(null);
+                  setIsAddingCustomer(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                New Customer
+              </button>
+            </div>
             <div ref={customerMenuRef} className="relative">
               <input
                 type="text"
@@ -404,7 +488,7 @@ export default function CreateOrderForm({
                 </div>
               ) : null}
             </div>
-          </FormField>
+          </div>
 
           {isCustomerLoading ? (
             <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
