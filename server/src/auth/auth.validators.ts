@@ -27,11 +27,3 @@ export const registerValidators = [
     .isBoolean()
     .withMessage('is_active must be a boolean'),
 ];
-
-export const loginValidators = [
-  body('email').isEmail().normalizeEmail().withMessage('email must be valid'),
-  body('password')
-    .isString()
-    .notEmpty()
-    .withMessage('password is required'),
-];

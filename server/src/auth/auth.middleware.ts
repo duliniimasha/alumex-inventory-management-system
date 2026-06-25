@@ -1,21 +1,10 @@
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
-import jwt, {
-  JsonWebTokenError,
-  TokenExpiredError,
-  type JwtPayload,
-} from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service';
 import { sendStandardError } from '../common/error-response.util';
-import { roleSlugToEnum, type RoleSlug } from './role.util';
-
-interface AuthTokenPayload extends JwtPayload {
-  user_id: string;
-  role: RoleSlug;
-  department: string | null;
-  jti: string;
-}
+import { roleEnumToSlug, type RoleSlug } from './role.util';
+import { SupabaseService } from './supabase.service';
 
 interface RequestUser {
   id: string;
@@ -27,23 +16,14 @@ interface RequestUser {
 
 export type AuthenticatedRequest = Request & {
   user?: RequestUser;
-  tokenPayload?: AuthTokenPayload;
+  /** The raw Supabase access token for the current request. */
+  accessToken?: string;
 };
 
 interface AuthorizeOwnOptions {
   resource: 'customer' | 'order' | 'order-line';
   idParam?: string;
   applyOwnerFilterOnList?: boolean;
-}
-
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error('JWT_SECRET must be configured');
-  }
-
-  return secret;
 }
 
 function extractBearerToken(req: Request): string | null {
@@ -77,10 +57,6 @@ function isPublicPath(req: Request): boolean {
     return true;
   }
 
-  if (req.method === 'POST' && path === 'auth/login') {
-    return true;
-  }
-
   return false;
 }
 
@@ -108,7 +84,10 @@ function getRequestZoneValues(req: Request): string[] {
 
 @Injectable()
 export class AuthenticateMiddleware implements NestMiddleware {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (isPublicPath(req)) {
@@ -123,32 +102,21 @@ export class AuthenticateMiddleware implements NestMiddleware {
       return;
     }
 
+    let userId: string;
+
     try {
-      const decoded = jwt.verify(token, getJwtSecret()) as AuthTokenPayload;
+      const payload = await this.supabase.verifyAccessToken(token);
+      userId = payload.sub as string;
+    } catch {
+      sendStandardError(res, 401, 'Invalid or expired access token');
+      return;
+    }
 
-      if (
-        !decoded ||
-        typeof decoded.user_id !== 'string' ||
-        typeof decoded.role !== 'string' ||
-        typeof decoded.jti !== 'string'
-      ) {
-        sendStandardError(res, 401, 'Invalid token payload');
-        return;
-      }
-
-      const role = roleSlugToEnum(decoded.role);
-      const revokedToken = await this.prisma.revokedToken.findUnique({
-        where: { jti: decoded.jti },
-        select: { id: true },
-      });
-
-      if (revokedToken) {
-        sendStandardError(res, 401, 'Token has been invalidated');
-        return;
-      }
-
+    try {
+      // The `users` table remains the source of truth for role/department.
+      // Its `id` equals the Supabase auth user id (the token `sub` claim).
       const user = await this.prisma.user.findUnique({
-        where: { id: decoded.user_id },
+        where: { id: userId },
         select: {
           id: true,
           role: true,
@@ -159,11 +127,6 @@ export class AuthenticateMiddleware implements NestMiddleware {
 
       if (!user || !user.isActive) {
         sendStandardError(res, 401, 'Authenticated user is inactive or missing');
-        return;
-      }
-
-      if (user.role !== role) {
-        sendStandardError(res, 401, 'Token role does not match current user role');
         return;
       }
 
@@ -180,23 +143,13 @@ export class AuthenticateMiddleware implements NestMiddleware {
         id: user.id,
         user_id: user.id,
         role: user.role,
-        role_slug: decoded.role,
+        role_slug: roleEnumToSlug(user.role),
         department: user.department ?? null,
       };
-      (req as AuthenticatedRequest).tokenPayload = decoded;
+      (req as AuthenticatedRequest).accessToken = token;
 
       next();
-    } catch (error) {
-      if (error instanceof TokenExpiredError) {
-        sendStandardError(res, 401, 'Token has expired');
-        return;
-      }
-
-      if (error instanceof JsonWebTokenError) {
-        sendStandardError(res, 401, 'Invalid token');
-        return;
-      }
-
+    } catch {
       sendStandardError(res, 500, 'Failed to authenticate request');
     }
   }

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { logoutUser } from '../../api/auth.api';
 import { useAuthStore } from '../../store/auth.store';
 
 interface SidebarProps {
@@ -120,13 +121,14 @@ export default function Sidebar({ isOpen, onClose, appName, appVersion }: Sideba
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const shouldLogout = window.confirm('Are you sure you want to log out?');
 
     if (!shouldLogout) {
       return;
     }
 
+    await logoutUser();
     clearAuth();
     navigate('/login', { replace: true });
     onClose();

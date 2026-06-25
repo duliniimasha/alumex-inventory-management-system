@@ -16,7 +16,7 @@ import {
   enforceExportOrderScope,
   enforceProductionRawMaterialQtyEdit,
 } from './auth/auth.middleware';
-import { loginValidators, registerValidators } from './auth/auth.validators';
+import { registerValidators } from './auth/auth.validators';
 import { validateRequest } from './auth/validation.middleware';
 import { AuditLogMiddleware } from './audit/audit-log.middleware';
 import { AuditLogsModule } from './audit/audit-logs.module';
@@ -72,13 +72,10 @@ export class AppModule implements NestModule {
       .apply(validateRequest(registerValidators))
       .forRoutes({ path: 'auth/register', method: RequestMethod.POST });
 
-    consumer
-      .apply(validateRequest(loginValidators))
-      .forRoutes({ path: 'auth/login', method: RequestMethod.POST });
-
+    // Authentication is handled by Supabase Auth on the client; every API route
+    // requires a valid Supabase access token (verified in AuthenticateMiddleware).
     consumer
       .apply(AuthenticateMiddleware, AuditLogMiddleware)
-      .exclude({ path: 'auth/login', method: RequestMethod.POST })
       .forRoutes({ path: '*', method: RequestMethod.ALL });
 
     consumer

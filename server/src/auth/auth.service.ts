@@ -6,12 +6,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Role } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import type { AuthenticatedUser, JwtClaims } from './auth.types';
 import { roleEnumToSlug, roleSlugToEnum, type RoleSlug } from './role.util';
+import { SupabaseService } from './supabase.service';
 
 export interface RegisterUserDto {
   name: string;
@@ -20,11 +17,6 @@ export interface RegisterUserDto {
   role: RoleSlug;
   department?: string;
   is_active?: boolean;
-}
-
-export interface LoginDto {
-  email: string;
-  password: string;
 }
 
 export interface ChangePasswordDto {
@@ -43,22 +35,27 @@ export interface AuthUserProfile {
   created_at: Date;
 }
 
-export interface LoginResult {
-  token: string;
-  user: AuthUserProfile;
-}
-
-const TOKEN_TTL_SECONDS = 60 * 60;
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
+  /**
+   * Provisions a user in Supabase Auth (source of truth for credentials) and
+   * mirrors them into the application `users` table using the same id, so the
+   * Supabase token `sub` resolves to the app user. On a mirror failure the
+   * Supabase user is removed to avoid orphaned auth accounts.
+   */
   async register(dto: RegisterUserDto): Promise<AuthUserProfile> {
+    const email = dto.email.toLowerCase().trim();
+
     const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { email },
       select: { id: true },
     });
 
@@ -66,79 +63,38 @@ export class AuthService {
       throw new ConflictException('A user with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    this.ensurePasswordValid(dto.password);
+
     const role = roleSlugToEnum(dto.role);
 
-    const createdUser = await this.prisma.user.create({
-      data: {
-        name: dto.name.trim(),
-        email: dto.email.toLowerCase().trim(),
-        passwordHash: hashedPassword,
-        role,
-        department: dto.department?.trim() || null,
-        isActive: dto.is_active ?? true,
-      },
+    const authUser = await this.supabase.createAuthUser({
+      email,
+      password: dto.password,
+      role: dto.role,
     });
 
-    return this.toAuthUserProfile(createdUser);
+    try {
+      const createdUser = await this.prisma.user.create({
+        data: {
+          id: authUser.id,
+          name: dto.name.trim(),
+          email,
+          role,
+          department: dto.department?.trim() || null,
+          isActive: dto.is_active ?? true,
+        },
+      });
+
+      return this.toAuthUserProfile(createdUser);
+    } catch (error) {
+      // Compensate: roll back the Supabase auth user so the two stay in sync.
+      await this.supabase.deleteAuthUser(authUser.id);
+      throw error;
+    }
   }
 
-  async login(dto: LoginDto): Promise<LoginResult> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase().trim() },
-    });
-
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const isPasswordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const jti = randomUUID();
-    const claims: JwtClaims = {
-      user_id: user.id,
-      role: roleEnumToSlug(user.role),
-      department: user.department ?? null,
-      jti,
-    };
-
-    const token = jwt.sign(claims, this.getJwtSecret(), {
-      expiresIn: TOKEN_TTL_SECONDS,
-      subject: user.id,
-    });
-
-    await this.cleanupExpiredRevokedTokens();
-
-    return {
-      token,
-      user: this.toAuthUserProfile(user),
-    };
-  }
-
-  async logout(authUser: AuthenticatedUser, claims: JwtClaims): Promise<void> {
-    const expiresAt = claims.exp
-      ? new Date(claims.exp * 1000)
-      : new Date(Date.now() + TOKEN_TTL_SECONDS * 1000);
-
-    await this.prisma.revokedToken.upsert({
-      where: { jti: claims.jti },
-      update: {
-        userId: authUser.id,
-        expiresAt,
-      },
-      create: {
-        jti: claims.jti,
-        userId: authUser.id,
-        expiresAt,
-      },
-    });
+  async logout(accessToken: string): Promise<void> {
+    await this.supabase.revokeSessions(accessToken);
   }
 
   async me(userId: string): Promise<AuthUserProfile> {
@@ -168,41 +124,16 @@ export class AuthService {
       throw new UnauthorizedException('Authenticated user not found');
     }
 
-    const currentPasswordMatches = await bcrypt.compare(
+    const currentPasswordMatches = await this.supabase.verifyPassword(
+      user.email,
       dto.current_password,
-      user.passwordHash,
     );
 
     if (!currentPasswordMatches) {
       throw new UnauthorizedException('Current password is incorrect');
     }
 
-    const passwordHash = await bcrypt.hash(dto.new_password, 12);
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash },
-    });
-  }
-
-  private async cleanupExpiredRevokedTokens(): Promise<void> {
-    await this.prisma.revokedToken.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date(),
-        },
-      },
-    });
-  }
-
-  private getJwtSecret(): string {
-    const secret = process.env.JWT_SECRET;
-
-    if (!secret) {
-      throw new Error('JWT_SECRET must be configured');
-    }
-
-    return secret;
+    await this.supabase.updateAuthUserPassword(userId, dto.new_password);
   }
 
   private ensurePasswordValid(password: string): void {

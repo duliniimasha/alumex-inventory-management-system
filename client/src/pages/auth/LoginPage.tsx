@@ -27,10 +27,6 @@ export default function LoginPage() {
   const redirectTo =
     (location.state as { from?: string } | null)?.from ?? '/dashboard';
 
-  if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
-  }
-
   const {
     register,
     handleSubmit,
@@ -43,14 +39,18 @@ export default function LoginPage() {
     },
   });
 
+  // Hooks must run on every render — keep this redirect after all hook calls.
+  if (isAuthenticated) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
   const onSubmit = async (values: LoginFormData) => {
     setApiError(null);
 
     try {
-      const response = await loginUser(values);
-      const { token, user } = response.data;
+      const user = await loginUser(values);
 
-      setAuth(token, user);
+      setAuth(user);
       toast.success(`Welcome back, ${user.name}!`);
       navigate(redirectTo, { replace: true });
     } catch (error) {
@@ -61,6 +61,9 @@ export default function LoginPage() {
         message = Array.isArray(apiMessage)
           ? apiMessage.join(', ')
           : apiMessage ?? message;
+      } else if (error instanceof Error && error.message) {
+        // Supabase auth errors (e.g. invalid credentials) arrive as Error.
+        message = error.message;
       }
 
       setApiError(message);

@@ -11,8 +11,6 @@ import {
   AuthService,
   type AuthUserProfile,
   type ChangePasswordDto,
-  type LoginDto,
-  type LoginResult,
   type RegisterUserDto,
 } from './auth.service';
 import type { AuthenticatedRequest } from './auth.middleware';
@@ -34,26 +32,15 @@ export class AuthController {
     };
   }
 
-  @Post('login')
-  async login(@Body() body: LoginDto): Promise<ApiResponse<LoginResult>> {
-    const result = await this.authService.login(body);
-
-    return {
-      success: true,
-      data: result,
-      message: 'Login successful',
-    };
-  }
-
   @Post('logout')
   async logout(
     @Req() request: AuthenticatedRequest,
   ): Promise<ApiResponse<{ logged_out: boolean }>> {
-    if (!request.user || !request.tokenPayload) {
+    if (!request.user || !request.accessToken) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    await this.authService.logout(request.user, request.tokenPayload);
+    await this.authService.logout(request.accessToken);
 
     return {
       success: true,

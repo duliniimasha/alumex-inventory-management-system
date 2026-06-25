@@ -2,19 +2,20 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Application user profiles. Credentials live in Supabase Auth, not here — seed
+-- the matching auth.users rows with prisma/seed-auth-users.sql (same UUIDs).
 INSERT INTO users (
   user_id,
   name,
   email,
   role,
-  department,
-  password_hash
+  department
 )
 VALUES
-  ('2f5e5ca2-1f74-4aec-a649-a4037e9f6f9a', 'System Administrator', 'sysadmin@alumex.local', 'SYSTEM_ADMIN'::"Role", 'IT', crypt('Admin@12345', gen_salt('bf', 12))),
-  ('49cfb6d6-8474-45c3-8a6f-3f83f5dd52da', 'Export Coordinator', 'export.coordinator@alumex.local', 'EXPORT_COORDINATOR'::"Role", 'Logistics', crypt('Export@12345', gen_salt('bf', 12))),
-  ('95e15f6c-ef81-4af2-9f90-2990eb4fb8ad', 'Warehouse Officer', 'warehouse.officer@alumex.local', 'WAREHOUSE_OFFICER'::"Role", 'Warehouse', crypt('Warehouse@12345', gen_salt('bf', 12))),
-  ('c434ef36-4557-43b2-a7d3-60841c229688', 'Production Supervisor', 'production.supervisor@alumex.local', 'PRODUCTION_SUPERVISOR'::"Role", 'Production', crypt('Production@12345', gen_salt('bf', 12)))
+  ('2f5e5ca2-1f74-4aec-a649-a4037e9f6f9a', 'System Administrator', 'sysadmin@alumex.local', 'SYSTEM_ADMIN'::"Role", 'IT'),
+  ('49cfb6d6-8474-45c3-8a6f-3f83f5dd52da', 'Export Coordinator', 'export.coordinator@alumex.local', 'EXPORT_COORDINATOR'::"Role", 'Logistics'),
+  ('95e15f6c-ef81-4af2-9f90-2990eb4fb8ad', 'Warehouse Officer', 'warehouse.officer@alumex.local', 'WAREHOUSE_OFFICER'::"Role", 'Warehouse'),
+  ('c434ef36-4557-43b2-a7d3-60841c229688', 'Production Supervisor', 'production.supervisor@alumex.local', 'PRODUCTION_SUPERVISOR'::"Role", 'Production')
 ON CONFLICT (user_id) DO UPDATE SET
   name = EXCLUDED.name,
   email = EXCLUDED.email,
