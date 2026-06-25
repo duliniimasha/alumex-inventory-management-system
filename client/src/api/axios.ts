@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useUiStore } from '../store/ui.store';
+import { supabase } from '../lib/supabase';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
@@ -9,9 +10,12 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     useUiStore.getState().startLoading();
-    const token = localStorage.getItem('alumex_token');
+
+    // Attach the current Supabase access token (auto-refreshed by the client).
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
 
     if (token) {
       config.headers = config.headers ?? {};
@@ -31,12 +35,11 @@ api.interceptors.response.use(
     useUiStore.getState().stopLoading();
     return response;
   },
-  (error) => {
+  async (error) => {
     useUiStore.getState().stopLoading();
 
     if (error.response?.status === 401) {
-      localStorage.removeItem('alumex_token');
-      localStorage.removeItem('alumex_user');
+      await supabase.auth.signOut();
       window.location.href = '/login';
     }
 

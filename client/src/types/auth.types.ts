@@ -8,14 +8,13 @@ export interface AuthUser {
 }
 
 export interface AuthState {
-  token: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  setAuth: (token: string, user: AuthUser) => void;
+  setAuth: (user: AuthUser) => void;
   clearAuth: () => void;
   setLoading: (loading: boolean) => void;
-  initializeAuth: () => void;
+  initializeAuth: () => Promise<void>;
 }
 
 export interface LoginFormData {

@@ -109,22 +109,35 @@ npm run start:prod
 
 ## Authentication and roles
 
-The API uses JWT Bearer tokens.
+Authentication is handled by **Supabase Auth (GoTrue)**. The client signs in with
+Supabase and sends the resulting Supabase access token as a Bearer token; the API
+verifies it and loads the matching `users` row (the source of truth for role,
+department, and active state). Role-based authorization is enforced by NestJS
+middleware (see `app.module.ts`).
 
 ### Login flow
 
-1. Call `POST /auth/login` with email and password.
-2. Copy the returned token into the `Authorization` header.
-3. Use `Authorization: Bearer <token>` on protected requests.
+1. Sign in client-side via Supabase (`supabase.auth.signInWithPassword`). The
+   Supabase client owns and auto-refreshes the session.
+2. Send the Supabase access token as `Authorization: Bearer <token>` on protected
+   requests.
+3. Fetch the application profile (role/department) from `GET /auth/me`.
+
+The Supabase auth user id equals `users.user_id`, so the token `sub` claim
+resolves directly to the application user. Existing users are migrated with
+`prisma/import-users-to-supabase-auth.sql` (run once), which preserves ids and
+passwords.
 
 ### Auth routes
 
-| Method | Endpoint         | Auth required | Roles                  |
-| ------ | ---------------- | ------------- | ---------------------- |
-| POST   | `/auth/register` | Yes           | `system_admin`         |
-| POST   | `/auth/login`    | No            | -                      |
-| POST   | `/auth/logout`   | Yes           | Any authenticated role |
-| GET    | `/auth/me`       | Yes           | Any authenticated role |
+| Method | Endpoint                | Auth required | Roles                  |
+| ------ | ----------------------- | ------------- | ---------------------- |
+| POST   | `/auth/register`        | Yes           | `system_admin`         |
+| POST   | `/auth/logout`          | Yes           | Any authenticated role |
+| GET    | `/auth/me`              | Yes           | Any authenticated role |
+| POST   | `/auth/change-password` | Yes           | Any authenticated role |
+
+> Login is no longer a backend route — it happens directly against Supabase Auth.
 
 ### Register request body
 

@@ -1,79 +1,60 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { AuthState, AuthUser } from '../types/auth.types';
+import { supabase } from '../lib/supabase';
+import { getCurrentUser } from '../api/auth.api';
 
-const TOKEN_STORAGE_KEY = 'alumex_token';
 const USER_STORAGE_KEY = 'alumex_user';
 
-interface JwtPayload {
-  exp?: number;
-}
-
-function decodeJwtPayload(token: string): JwtPayload | null {
-  try {
-    const payloadSegment = token.split('.')[1];
-
-    if (!payloadSegment) {
-      return null;
-    }
-
-    const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    const decoded = atob(padded);
-
-    return JSON.parse(decoded) as JwtPayload;
-  } catch {
-    return null;
-  }
-}
-
-function isTokenExpired(token: string): boolean {
-  const payload = decodeJwtPayload(token);
-
-  if (!payload?.exp) {
-    return true;
-  }
-
-  return payload.exp * 1000 <= Date.now();
-}
+let authListenerBound = false;
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
       isAuthenticated: false,
       isLoading: false,
-      setAuth: (token: string, user: AuthUser) => {
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      setAuth: (user: AuthUser) => {
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-        set({ user, token, isAuthenticated: true });
+        set({ user, isAuthenticated: true });
       },
       clearAuth: () => {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
         localStorage.removeItem(USER_STORAGE_KEY);
-        set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+        set({ user: null, isAuthenticated: false, isLoading: false });
       },
       setLoading: (loading: boolean) => {
         set({ isLoading: loading });
       },
-      initializeAuth: () => {
+      // Session validity is owned by Supabase. On startup we check for an active
+      // session and (re)load the application profile; we also subscribe once to
+      // auth changes so sign-out / token expiry clears local state.
+      initializeAuth: async () => {
         set({ isLoading: true });
 
-        const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-        const rawUser = localStorage.getItem(USER_STORAGE_KEY);
-
-        if (!token || !rawUser || isTokenExpired(token)) {
-          get().clearAuth();
-          return;
+        if (!authListenerBound) {
+          authListenerBound = true;
+          supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+              get().clearAuth();
+            }
+          });
         }
 
         try {
-          const user = JSON.parse(rawUser) as AuthUser;
-          get().setAuth(token, user);
-          set({ isLoading: false });
+          const { data } = await supabase.auth.getSession();
+
+          if (!data.session) {
+            get().clearAuth();
+            return;
+          }
+
+          const profile = await getCurrentUser();
+          get().setAuth(profile);
         } catch {
+          await supabase.auth.signOut();
           get().clearAuth();
+        } finally {
+          set({ isLoading: false });
         }
       },
     }),

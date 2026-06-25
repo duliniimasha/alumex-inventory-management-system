@@ -6,9 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 import { PaginationMeta } from '../common/api-response.interface';
 import { roleSlugToEnum, type RoleSlug } from '../auth/role.util';
+import { SupabaseService } from '../auth/supabase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UserListFilters } from './users.routes';
 
@@ -47,7 +47,10 @@ const PASSWORD_MAX_LENGTH = 128;
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
   async listUsers(
     page = 1,
@@ -200,12 +203,8 @@ export class UsersService {
         throw new BadRequestException('Passwords do not match');
       }
 
-      const passwordHash = await bcrypt.hash(dto.new_password, 12);
-
-      await this.prisma.user.update({
-        where: { id },
-        data: { passwordHash },
-      });
+      // Passwords are owned by Supabase Auth (the user id equals the auth id).
+      await this.supabase.updateAuthUserPassword(id, dto.new_password);
     } catch (error) {
       this.handleError(error, 'Failed to reset password');
     }

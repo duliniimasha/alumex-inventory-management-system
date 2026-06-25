@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { changePassword } from '../../api/auth.api';
+import { changePassword, logoutUser } from '../../api/auth.api';
 import { useAuthStore } from '../../store/auth.store';
 import Modal from '../ui/Modal';
 import FormField from '../ui/FormField';
@@ -149,13 +149,14 @@ export default function Header({ onMenuToggle, pageTitle = 'Dashboard' }: Header
   const avatarInitials = useMemo(() => getInitials(user?.name), [user?.name]);
   const formattedRole = useMemo(() => formatRoleSlug(user?.role), [user?.role]);
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     const shouldSignOut = window.confirm('Are you sure you want to sign out?');
 
     if (!shouldSignOut) {
       return;
     }
 
+    await logoutUser();
     clearAuth();
     setIsDropdownOpen(false);
     navigate('/login', { replace: true });
