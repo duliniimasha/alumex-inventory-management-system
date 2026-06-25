@@ -14,6 +14,9 @@ export type ProcessType =
 
 export type QcResult = 'pass' | 'hold' | 'reject';
 
+// Surface finishes from the Alco price list.
+export type FinishCode = 'NA' | 'PC' | 'MF' | 'BR' | 'WF';
+
 export interface ProductionJob {
   id: string;
   material_id: string;
@@ -21,6 +24,10 @@ export interface ProductionJob {
   process_type: ProcessType;
   input_qty_kg: number;
   output_qty_kg: number | null;
+  // Practical production attributes (stored in the job metadata).
+  finish_type?: string | null;
+  standard_length_mm?: number | null;
+  output_pcs?: number | null;
   status: JobStatus;
   started_at: string | null;
   completed_at: string | null;
@@ -36,6 +43,7 @@ export interface ProductionJob {
   die?: {
     id: string;
     profile_code: string;
+    product_category?: string;
     condition: string;
   };
   qc_inspections?: QcInspection[];
@@ -60,12 +68,18 @@ export interface CreateProductionJobDto {
   process_type: ProcessType;
   input_qty_kg: number;
   output_qty_kg?: number;
+  finish_type?: string;
+  standard_length_mm?: number;
+  output_pcs?: number;
 }
 
 export interface UpdateProductionJobDto {
   status?: JobStatus;
   output_qty_kg?: number;
   completed_at?: string;
+  finish_type?: string;
+  standard_length_mm?: number;
+  output_pcs?: number;
 }
 
 export interface CreateQcInspectionDto {

@@ -24,7 +24,15 @@ interface ProductionJobApiMaterial {
 interface ProductionJobApiDie {
   id: string;
   profileCode: string;
+  productCategory?: string;
   condition: string;
+}
+
+interface ProductionJobMetadata {
+  finish?: string | null;
+  standard_length_mm?: number | null;
+  output_pcs?: number | null;
+  [key: string]: unknown;
 }
 
 interface QcInspectionApiModel {
@@ -49,6 +57,7 @@ interface ProductionJobApiModel {
   inputQtyKg?: number;
   outputQtyKg?: number | null;
   status?: string;
+  metadata?: ProductionJobMetadata | null;
   startedAt?: string | null;
   completedAt?: string | null;
   createdAt?: string;
@@ -178,7 +187,13 @@ function toQcInspection(model: QcInspectionApiModel): QcInspection {
   };
 }
 
+function toFiniteOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function toProductionJob(model: ProductionJobApiModel): ProductionJob {
+  const metadata = model.metadata ?? {};
+
   return {
     id: model.id,
     material_id: model.materialId,
@@ -188,6 +203,9 @@ function toProductionJob(model: ProductionJobApiModel): ProductionJob {
     output_qty_kg: Number.isFinite(model.outputQtyKg)
       ? model.outputQtyKg
       : null,
+    finish_type: typeof metadata.finish === 'string' ? metadata.finish : null,
+    standard_length_mm: toFiniteOrNull(metadata.standard_length_mm),
+    output_pcs: toFiniteOrNull(metadata.output_pcs),
     status: mapJobStatus(model.status),
     started_at: model.startedAt ?? null,
     completed_at: model.completedAt ?? null,
@@ -210,6 +228,7 @@ function toProductionJob(model: ProductionJobApiModel): ProductionJob {
       ? {
           id: model.die.id,
           profile_code: model.die.profileCode,
+          product_category: model.die.productCategory,
           condition: model.die.condition,
         }
       : undefined,
@@ -222,6 +241,28 @@ function toProductionJob(model: ProductionJobApiModel): ProductionJob {
         }
       : undefined,
   };
+}
+
+function buildMetadataPatch(dto: {
+  finish_type?: string;
+  standard_length_mm?: number;
+  output_pcs?: number;
+}): ProductionJobMetadata | undefined {
+  const metadata: ProductionJobMetadata = {};
+
+  if (dto.finish_type !== undefined) {
+    metadata.finish = dto.finish_type;
+  }
+
+  if (dto.standard_length_mm !== undefined) {
+    metadata.standard_length_mm = dto.standard_length_mm;
+  }
+
+  if (dto.output_pcs !== undefined) {
+    metadata.output_pcs = dto.output_pcs;
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
 function toCreateJobPayload(dto: CreateProductionJobDto) {
@@ -237,6 +278,11 @@ function toCreateJobPayload(dto: CreateProductionJobDto) {
 
   if (dto.output_qty_kg !== undefined) {
     payload.outputQtyKg = dto.output_qty_kg;
+  }
+
+  const metadata = buildMetadataPatch(dto);
+  if (metadata) {
+    payload.metadata = metadata;
   }
 
   return payload;
@@ -255,6 +301,11 @@ function toUpdateJobPayload(dto: UpdateProductionJobDto) {
 
   if (dto.completed_at !== undefined) {
     payload.completedAt = dto.completed_at;
+  }
+
+  const metadata = buildMetadataPatch(dto);
+  if (metadata) {
+    payload.metadata = metadata;
   }
 
   return payload;

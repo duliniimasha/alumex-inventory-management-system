@@ -9,6 +9,7 @@ import { useQcInspections } from '../../hooks/useQcInspections';
 import { useRoleAccess } from '../../hooks/useRoleAccess';
 import type { JobStatus, ProductionJob, UpdateProductionJobDto } from '../../types/production.types';
 import { formatDateTime, formatWeight, toTitleCase } from '../../utils/formatters';
+import { finishLabel, formatPieces, formatStandardLength } from '../../utils/production';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import JobStatusStepper from './JobStatusStepper';
@@ -36,22 +37,6 @@ interface DieOption {
   label: string;
   condition?: string;
 }
-
-const yieldTone = (percentage: number | null) => {
-  if (percentage === null) {
-    return 'text-gray-500';
-  }
-
-  if (percentage >= 85) {
-    return 'text-emerald-600';
-  }
-
-  if (percentage >= 70) {
-    return 'text-amber-600';
-  }
-
-  return 'text-red-600';
-};
 
 const formatValue = (value: string | number | null | undefined) =>
   value === null || value === undefined || value === '' ? '—' : String(value);
@@ -150,18 +135,6 @@ export default function JobDetailDrawer({
 
   const startedAt = job?.started_at ? formatDateTime(job.started_at) : '—';
   const completedAt = job?.completed_at ? formatDateTime(job.completed_at) : '—';
-
-  const yieldPercent = useMemo(() => {
-    if (!job || !Number.isFinite(job.input_qty_kg) || job.input_qty_kg <= 0) {
-      return null;
-    }
-
-    if (!Number.isFinite(job.output_qty_kg)) {
-      return null;
-    }
-
-    return (job.output_qty_kg / job.input_qty_kg) * 100;
-  }, [job]);
 
   const rawMaterialLowStock = useMemo(() => {
     const rawMaterial = job?.raw_material;
@@ -325,37 +298,39 @@ export default function JobDetailDrawer({
 
               <section className="grid grid-cols-1 gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm md:grid-cols-2">
                 <div>
-                  <p className="text-xs text-gray-500">Process Type</p>
-                  <p className="font-medium text-gray-900">{toTitleCase(job.process_type)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Input Qty</p>
-                  <p className="font-medium text-gray-900">{formatWeight(job.input_qty_kg)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Raw Material</p>
-                  <p className="font-medium text-gray-900">
-                    {job.raw_material?.grade || job.raw_material?.material_type
-                      ? `${job.raw_material?.grade ?? ''} ${job.raw_material?.material_type ?? ''}`.trim()
-                      : formatValue(job.material_id)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Output Qty</p>
-                  <p className="font-medium text-gray-900">
-                    {Number.isFinite(job.output_qty_kg) ? formatWeight(job.output_qty_kg) : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Die Used</p>
-                  <p className="font-medium text-gray-900">
+                  <p className="text-xs text-gray-500">Profile</p>
+                  <p className="font-mono font-medium text-gray-900">
                     {job.die?.profile_code ?? formatValue(job.die_id)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Yield %</p>
-                  <p className={`font-medium ${yieldTone(yieldPercent)}`}>
-                    {yieldPercent === null ? '—' : `${yieldPercent.toFixed(1)}%`}
+                  <p className="text-xs text-gray-500">Section</p>
+                  <p className="font-medium text-gray-900">
+                    {formatValue(job.die?.product_category)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Process Type</p>
+                  <p className="font-medium text-gray-900">{toTitleCase(job.process_type)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Finish</p>
+                  <p className="font-medium text-gray-900">
+                    {job.finish_type
+                      ? `${job.finish_type} — ${finishLabel(job.finish_type)}`
+                      : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Standard Length</p>
+                  <p className="font-medium text-gray-900">
+                    {formatStandardLength(job.standard_length_mm)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Output</p>
+                  <p className="font-medium text-gray-900">
+                    {Number.isFinite(job.output_pcs) ? formatPieces(job.output_pcs) : '—'}
                   </p>
                 </div>
                 <div>
@@ -369,6 +344,26 @@ export default function JobDetailDrawer({
                   <p className="font-medium text-gray-900">
                     {job.updated_at ? formatDateTime(job.updated_at) : '—'}
                   </p>
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-gray-100 bg-white p-4 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Billet usage
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Billet Consumed</p>
+                    <p className="font-medium text-gray-900">{formatWeight(job.input_qty_kg)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Raw Material</p>
+                    <p className="font-medium text-gray-900">
+                      {job.raw_material?.grade || job.raw_material?.material_type
+                        ? `${job.raw_material?.grade ?? ''} ${job.raw_material?.material_type ?? ''}`.trim()
+                        : formatValue(job.material_id)}
+                    </p>
+                  </div>
                 </div>
               </section>
 
