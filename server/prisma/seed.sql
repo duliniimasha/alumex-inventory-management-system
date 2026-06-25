@@ -84,12 +84,12 @@ INSERT INTO dies (
   deleted_at
 )
 VALUES
-  ('a2cf88e9-57ca-4229-b307-bcde9f21c773', 'ALX-1001', 'Architectural', 7200, 10000, 'good', NULL),
-  ('56569a3f-c896-4052-9f43-c72f262a5ce5', 'ALX-1015', 'Household', 9050, 10000, 'good', NULL),
-  ('44f6f313-cd0d-4fae-81bc-642228684d72', 'ALX-1100', 'Hardware', 10000, 10000, 'retired', NULL),
-  ('fe69d610-80be-4ace-bf6a-74f81e38e0a6', 'ALX-1208', 'Industrial', 4300, 9000, 'maintenance', NULL),
-  ('d640a95a-87f8-4d48-b91d-6f0f5137fcfe', 'ALX-1312', 'Trading', 1500, 8500, 'good', NULL),
-  ('f168e7e4-2f4d-46e7-9f7c-315f419ecf2b', 'ALX-0999', 'Architectural', 2200, 7000, 'retired', '2026-01-20T00:00:00.000Z')
+  ('a2cf88e9-57ca-4229-b307-bcde9f21c773', 'SLID-1001-1', 'Architectural', 7200, 10000, 'good', NULL),
+  ('56569a3f-c896-4052-9f43-c72f262a5ce5', 'SWD-101', 'Household', 9050, 10000, 'good', NULL),
+  ('44f6f313-cd0d-4fae-81bc-642228684d72', 'ST-1X1', 'Hardware', 10000, 10000, 'retired', NULL),
+  ('fe69d610-80be-4ace-bf6a-74f81e38e0a6', 'ALC-RP-101AT', 'Industrial', 4300, 9000, 'maintenance', NULL),
+  ('d640a95a-87f8-4d48-b91d-6f0f5137fcfe', 'LOV-01', 'Trading', 1500, 8500, 'good', NULL),
+  ('f168e7e4-2f4d-46e7-9f7c-315f419ecf2b', 'PAR-5153', 'Architectural', 2200, 7000, 'retired', '2026-01-20T00:00:00.000Z')
 ON CONFLICT (die_id) DO UPDATE SET
   profile_code = EXCLUDED.profile_code,
   product_category = EXCLUDED.product_category,
@@ -846,5 +846,28 @@ VALUES
   ('f0040000-0000-4000-8000-000000000015', 'f0030000-0000-4000-8000-000000000015', 'PASS'::"QcStatus", 'Ruwan Jayasuriya', 'Dimensional and surface checks approved.', '2026-06-17T15:00:00.000Z')
 ON CONFLICT (inspection_id) DO UPDATE SET
   job_id = EXCLUDED.job_id, status = EXCLUDED.status, inspector_name = EXCLUDED.inspector_name, notes = EXCLUDED.notes, inspected_at = EXCLUDED.inspected_at;
+
+-- Enrich production jobs with practical Alco profile attributes:
+-- surface finish (NA/PC/MF/BR/WF), standard length (mm) and output pieces.
+UPDATE production_jobs pj
+SET metadata = COALESCE(pj.metadata, '{}'::jsonb) || jsonb_build_object(
+  'finish', CASE
+              WHEN d.profile_code LIKE 'SLID-%' OR d.profile_code LIKE '80SLID-%' THEN 'NA'
+              WHEN d.profile_code LIKE 'LOV-%' THEN 'BR'
+              WHEN d.profile_code LIKE 'PAR-%' THEN 'MF'
+              WHEN d.profile_code LIKE 'SWD-%' THEN 'PC'
+              WHEN d.profile_code LIKE 'ST-%' OR d.profile_code LIKE 'RT-%' THEN 'MF'
+              WHEN d.profile_code LIKE 'ALC-RP-%' THEN 'WF'
+              ELSE 'PC' END,
+  'standard_length_mm', CASE
+              WHEN d.profile_code LIKE 'SLID-%' OR d.profile_code LIKE '80SLID-%' OR d.profile_code LIKE 'SWD-%' THEN 6500
+              WHEN d.profile_code LIKE 'ST-%' OR d.profile_code LIKE 'RT-%' OR d.profile_code LIKE 'ALC-RP-%' THEN 3660
+              ELSE 6100 END,
+  'output_pcs', CASE
+              WHEN pj.output_qty_kg IS NOT NULL THEN GREATEST(1, ROUND(pj.output_qty_kg / 8.0))
+              ELSE NULL END
+)
+FROM dies d
+WHERE pj.die_id = d.die_id;
 
 COMMIT;

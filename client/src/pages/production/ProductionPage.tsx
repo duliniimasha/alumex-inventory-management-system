@@ -28,19 +28,15 @@ import type {
   ProductionJob,
   UpdateProductionJobDto,
 } from '../../types/production.types';
-import { formatDate, formatWeight, toTitleCase } from '../../utils/formatters';
+import { formatDate, toTitleCase } from '../../utils/formatters';
+import { FINISH_LABELS, formatStandardLength } from '../../utils/production';
 
 const processTypeOptions = [
   { value: '', label: 'All Processes' },
   { value: 'extrusion', label: 'Extrusion' },
   { value: 'powder_coating', label: 'Powder Coating' },
   { value: 'anodizing', label: 'Anodizing' },
-  { value: 'die_casting', label: 'Die Casting' },
   { value: 'cutting', label: 'Cutting' },
-  { value: 'welding', label: 'Welding' },
-  { value: 'laser', label: 'Laser' },
-  { value: 'cnc', label: 'CNC' },
-  { value: 'other', label: 'Other' },
 ] as const;
 
 function getVisiblePages(currentPage: number, totalPages: number) {
@@ -186,12 +182,9 @@ export default function ProductionPage() {
 
     try {
       const createPayload = payload as CreateProductionJobDto;
-      const inputQty = 'input_qty_kg' in payload ? payload.input_qty_kg : 0;
 
       await createProductionJob(createPayload);
-      toast.success(
-        `Production job created. ${inputQty} kg deducted from stock.`,
-      );
+      toast.success('Production job created successfully.');
       setIsCreateOpen(false);
       await fetchJobs();
     } catch (submitError) {
@@ -259,27 +252,48 @@ export default function ProductionPage() {
       ),
     },
     {
+      key: 'profile',
+      header: 'Profile',
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-mono text-sm font-semibold text-gray-900">
+            {row.die?.profile_code ?? '—'}
+          </span>
+          {row.die?.product_category ? (
+            <span className="text-xs text-gray-500">{row.die.product_category}</span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
       key: 'process_type',
       header: 'Process',
       render: (row) => <Badge label={toTitleCase(row.process_type)} color="blue" />,
     },
     {
-      key: 'raw_material',
-      header: 'Material',
-      render: (row) => row.raw_material?.grade ?? row.raw_material?.material_type ?? '—',
-    },
-    {
-      key: 'input_qty_kg',
-      header: 'Input (kg)',
-      sortable: true,
-      render: (row) => formatWeight(row.input_qty_kg),
-    },
-    {
-      key: 'output_qty_kg',
-      header: 'Output (kg)',
+      key: 'finish_type',
+      header: 'Finish',
       render: (row) =>
-        Number.isFinite(row.output_qty_kg) ? (
-          formatWeight(row.output_qty_kg as number)
+        row.finish_type ? (
+          <Badge label={row.finish_type} color="amber" />
+        ) : (
+          <span className="text-gray-400">—</span>
+        ),
+    },
+    {
+      key: 'standard_length_mm',
+      header: 'Length',
+      render: (row) => formatStandardLength(row.standard_length_mm),
+    },
+    {
+      key: 'output_pcs',
+      header: 'Output (pcs)',
+      sortable: true,
+      render: (row) =>
+        Number.isFinite(row.output_pcs) ? (
+          <span className="font-medium text-gray-900">
+            {(row.output_pcs as number).toLocaleString()}
+          </span>
         ) : (
           <span className="text-gray-400">Pending</span>
         ),
@@ -365,7 +379,7 @@ export default function ProductionPage() {
     <section className="space-y-4">
       <PageHeader
         title="Production Jobs"
-        subtitle="Manage extrusion, coating, and value-added processing jobs"
+        subtitle="Track profile extrusion, surface finishing and cutting jobs"
         breadcrumbs={[{ label: 'Production', path: '/production' }]}
         actions={canManageProduction ? (
           <button
@@ -431,7 +445,7 @@ export default function ProductionPage() {
           type="text"
           value={searchValue}
           onChange={(event) => setSearchValue(event.target.value)}
-          placeholder="Search by job ID or material grade"
+          placeholder="Search by profile code"
           className="h-10 w-full min-w-[220px] flex-1 rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-400/50 md:max-w-sm"
         />
       </FilterBar>
