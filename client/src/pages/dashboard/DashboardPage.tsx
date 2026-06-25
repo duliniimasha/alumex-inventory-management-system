@@ -104,6 +104,7 @@ function DashboardContent() {
         onClick: () => navigate('/orders', { state: { openCreate: true } }),
       });
     }
+    
 
     if (canDispatch) {
       actions.push({

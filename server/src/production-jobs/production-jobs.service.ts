@@ -57,6 +57,7 @@ export interface CreateProductionJobDto {
 export interface UpdateProductionJobStatusDto {
   status?: string;
   outputQtyKg?: number;
+  metadata?: Prisma.InputJsonValue;
 }
 
 export interface CreateInspectionDto {
@@ -313,6 +314,17 @@ export class ProductionJobsService {
 
         if (body.outputQtyKg !== undefined) {
           updateData.outputQtyKg = body.outputQtyKg;
+        }
+
+        if (body.metadata !== undefined && body.metadata !== null) {
+          const existingMetadata =
+            job.metadata && typeof job.metadata === 'object'
+              ? (job.metadata as Record<string, unknown>)
+              : {};
+          updateData.metadata = {
+            ...existingMetadata,
+            ...(body.metadata as Record<string, unknown>),
+          } as Prisma.InputJsonValue;
         }
 
         if (nextStatus === JOB_STATUSES.IN_PROGRESS && !job.startedAt) {

@@ -11,6 +11,7 @@ import type {
   UpdateProductionJobDto,
 } from '../../types/production.types';
 import FormField from '../ui/FormField';
+import { FINISH_OPTIONS, STANDARD_LENGTH_OPTIONS } from '../../utils/production';
 
 interface RawMaterialSelectOption {
   value: string;
@@ -40,12 +41,7 @@ const processTypeOptions: { value: ProcessType; label: string }[] = [
   { value: 'extrusion', label: 'Extrusion' },
   { value: 'powder_coating', label: 'Powder Coating' },
   { value: 'anodizing', label: 'Anodizing' },
-  { value: 'die_casting', label: 'Die Casting' },
   { value: 'cutting', label: 'Cutting' },
-  { value: 'welding', label: 'Welding' },
-  { value: 'laser', label: 'Laser' },
-  { value: 'cnc', label: 'CNC' },
-  { value: 'other', label: 'Other' },
 ];
 
 const parseNumberInput = (value: unknown) => {
@@ -78,12 +74,16 @@ const productionJobSchema = z
       ],
       { message: 'Process type is required' },
     ),
+    finish_type: z.enum(['NA', 'PC', 'MF', 'BR', 'WF'], {
+      message: 'Finish is required',
+    }),
+    standard_length_mm: z.number({ message: 'Standard length is required' }),
     input_qty_kg: z
       .number({ message: 'Must be a number' })
-      .positive('Input quantity must be greater than 0'),
-    output_qty_kg: z
+      .positive('Billet quantity must be greater than 0'),
+    output_pcs: z
       .number({ message: 'Must be a number' })
-      .positive('Output quantity must be greater than 0')
+      .positive('Output pieces must be greater than 0')
       .optional(),
   })
   .superRefine((values, ctx) => {
@@ -111,8 +111,10 @@ function getDefaultValues(initialData?: ProductionJob): Partial<ProductionJobFor
     material_id: initialData?.material_id ?? '',
     die_id: initialData?.die_id ?? '',
     process_type: initialData?.process_type ?? undefined,
+    finish_type: (initialData?.finish_type as ProductionJobFormValues['finish_type']) ?? undefined,
+    standard_length_mm: initialData?.standard_length_mm ?? undefined,
     input_qty_kg: initialData?.input_qty_kg ?? undefined,
-    output_qty_kg: initialData?.output_qty_kg ?? undefined,
+    output_pcs: initialData?.output_pcs ?? undefined,
   };
 }
 
@@ -145,18 +147,6 @@ function getConditionTone(condition: string | undefined): string {
   return 'bg-emerald-100 text-emerald-700';
 }
 
-function getYieldTone(percentage: number): string {
-  if (percentage >= 85) {
-    return 'bg-emerald-100 text-emerald-700';
-  }
-
-  if (percentage >= 70) {
-    return 'bg-amber-100 text-amber-700';
-  }
-
-  return 'bg-red-100 text-red-700';
-}
-
 export default function ProductionJobForm({
   initialData,
   onSubmit,
@@ -182,7 +172,6 @@ export default function ProductionJobForm({
   const selectedDieId = watch('die_id');
   const processType = watch('process_type');
   const inputQty = watch('input_qty_kg');
-  const outputQty = watch('output_qty_kg');
 
   const [materialMenu, setMaterialMenu] = useState<MenuState>({
     isOpen: false,
@@ -280,17 +269,16 @@ export default function ProductionJobForm({
       initialData?.status === 'on_hold' ||
       initialData?.status === 'completed');
 
-  const yieldPercent =
-    Number.isFinite(inputQty) && Number.isFinite(outputQty) && Number(inputQty) > 0
-      ? (Number(outputQty) / Number(inputQty)) * 100
-      : null;
-
   const isDieRequired = processType === 'extrusion' || processType === 'die_casting';
 
   const onFormSubmit = async (values: ProductionJobFormValues) => {
     if (isEditMode) {
       const payload: UpdateProductionJobDto = {
-        output_qty_kg: values.output_qty_kg,
+        finish_type: values.finish_type,
+        standard_length_mm: values.standard_length_mm,
+        output_pcs: values.output_pcs,
+        // Keep the completion engine working: finished-goods quantity = pieces produced.
+        output_qty_kg: values.output_pcs,
       };
       await onSubmit(payload);
       return;
@@ -300,8 +288,10 @@ export default function ProductionJobForm({
       material_id: values.material_id,
       die_id: values.die_id ? values.die_id : undefined,
       process_type: values.process_type,
+      finish_type: values.finish_type,
+      standard_length_mm: values.standard_length_mm,
       input_qty_kg: values.input_qty_kg,
-      output_qty_kg: values.output_qty_kg,
+      output_pcs: values.output_pcs,
     };
 
     await onSubmit(payload);
@@ -324,6 +314,42 @@ export default function ProductionJobForm({
               Select process type
             </option>
             {processTypeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField label="Finish" required error={errors.finish_type?.message}>
+          <select
+            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-400/50"
+            {...register('finish_type')}
+            disabled={isSubmitting}
+            defaultValue={initialData?.finish_type ?? ''}
+          >
+            <option value="" disabled>
+              Select finish
+            </option>
+            {FINISH_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField label="Standard Length" required error={errors.standard_length_mm?.message}>
+          <select
+            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-400/50"
+            {...register('standard_length_mm', { setValueAs: parseNumberInput })}
+            disabled={isSubmitting}
+            defaultValue={initialData?.standard_length_mm ?? ''}
+          >
+            <option value="" disabled>
+              Select length
+            </option>
+            {STANDARD_LENGTH_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -459,7 +485,12 @@ export default function ProductionJobForm({
           ) : null}
         </FormField>
 
-        <FormField label="Input Quantity (kg)" required error={errors.input_qty_kg?.message}>
+        <FormField
+          label="Billet Consumed (kg)"
+          required
+          error={errors.input_qty_kg?.message}
+          hint="Aluminium billet drawn from raw-material stock"
+        >
           <input
             type="number"
             step="any"
@@ -477,37 +508,26 @@ export default function ProductionJobForm({
 
         {showOutputQty ? (
           <FormField
-            label="Output Quantity (kg)"
-            error={errors.output_qty_kg?.message}
-            hint="Actual output after processing losses"
+            label="Output (pieces)"
+            error={errors.output_pcs?.message}
+            hint="Finished lengths produced after cutting"
           >
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="any"
-                placeholder="0.00"
-                className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-400/50"
-                {...register('output_qty_kg', { setValueAs: parseNumberInput })}
-                disabled={isSubmitting}
-              />
-              {yieldPercent !== null ? (
-                <span
-                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getYieldTone(
-                    yieldPercent,
-                  )}`}
-                >
-                  Yield: {yieldPercent.toFixed(1)}%
-                </span>
-              ) : null}
-            </div>
+            <input
+              type="number"
+              step="1"
+              placeholder="0"
+              className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-400/50"
+              {...register('output_pcs', { setValueAs: parseNumberInput })}
+              disabled={isSubmitting}
+            />
           </FormField>
         ) : null}
       </div>
 
       {!isEditMode ? (
         <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
-          Creating this job will deduct {Number.isFinite(inputQty) ? inputQty : 0} kg from the
-          selected raw material stock.
+          Creating this job will deduct {Number.isFinite(inputQty) ? inputQty : 0} kg of billet
+          from the selected raw-material stock.
         </div>
       ) : null}
 
