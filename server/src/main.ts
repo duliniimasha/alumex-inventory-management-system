@@ -17,9 +17,19 @@ async function bootstrap() {
     );
   }
 
+  // Vercel gives every preview deployment a fresh hostname, so match them by pattern.
+  const previewOriginPattern =
+    /^https:\/\/alumex-inventory-management-system-[a-z0-9-]+\.vercel\.app$/;
+
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || previewOriginPattern.test(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
+    },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
