@@ -51,7 +51,7 @@ const DEFAULT_FILTERS: OrderFilters = {
   limit: 10,
 };
 
-const DISPATCH_READY_STATUSES: OrderStatus[] = ['confirmed', 'picking'];
+const DISPATCH_READY_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'picking'];
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
   if (isAxiosError<{ message?: string }>(error)) {

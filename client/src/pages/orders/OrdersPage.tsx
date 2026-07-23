@@ -112,7 +112,7 @@ function OrderActions({
   }, []);
 
   const canDispatchOrder =
-    (order.status === 'confirmed' || order.status === 'picking') && canDispatch;
+    (order.status === 'pending' || order.status === 'confirmed' || order.status === 'picking') && canDispatch;
   const canCancelOrder =
     (order.status === 'pending' || order.status === 'confirmed' || order.status === 'picking') && canCancel;
   const canReturnOrder = order.status === 'dispatched';
