@@ -555,14 +555,6 @@ export default function InventoryPage() {
                 Run Stocktake
               </button>
             ) : null}
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-              onClick={() => setIsMovementLogOpen(true)}
-            >
-              <History className="h-4 w-4" />
-              Movement Log
-            </button>
           </div>
         )}
       />
