@@ -272,7 +272,7 @@ export default function OrderStatusFlow({
     setIsCancelOpen(false);
   };
 
-  const showDispatchActions = status === 'confirmed' || status === 'picking';
+  const showDispatchActions = status === 'pending' || status === 'confirmed' || status === 'picking';
   const showReturnActions = status === 'dispatched';
   const showCancelActions = status === 'pending' || showDispatchActions;
 
@@ -340,23 +340,11 @@ export default function OrderStatusFlow({
 
         <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
           <div className="flex flex-wrap items-center gap-3">
-            {status === 'pending' ? (
-              <ActionButton
-                label="Confirm Order"
-                icon={CheckCircle}
-                tone="blue"
-                onClick={() => undefined}
-                disabled
-                isLoading={false}
-                hint="Confirmation will be added in a future update"
-              />
-            ) : null}
-
             {showDispatchActions && canDispatch ? (
               <ActionButton
-                label="Dispatch Order"
-                icon={Truck}
-                tone="green"
+                label={status === 'pending' ? 'Confirm Order' : 'Dispatch Order'}
+                icon={status === 'pending' ? CheckCircle : Truck}
+                tone={status === 'pending' ? 'blue' : 'green'}
                 onClick={() => setIsDispatchOpen(true)}
                 disabled={isUpdating}
                 isLoading={false}
