@@ -74,10 +74,6 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleString();
-}
-
 function formatNullableNumber(value: unknown) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return '—';
@@ -596,16 +592,6 @@ export default function RawMaterialsPage() {
             <div className="rounded-lg bg-gray-50 px-3 py-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Unit</p>
               <p className="mt-1 text-sm font-medium text-gray-800">{selectedMaterial.unit}</p>
-            </div>
-
-            <div className="rounded-lg bg-gray-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Created At</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">{formatDate(selectedMaterial.created_at)}</p>
-            </div>
-
-            <div className="rounded-lg bg-gray-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Updated At</p>
-              <p className="mt-1 text-sm font-medium text-gray-800">{formatDate(selectedMaterial.updated_at)}</p>
             </div>
           </div>
         ) : null}
