@@ -486,7 +486,7 @@ export default function ProductionJobForm({
         </FormField>
 
         <FormField
-          label="Billet Consumed (kg)"
+          label="Billet Consumed"
           required
           error={errors.input_qty_kg?.message}
           hint="Aluminium billet drawn from raw-material stock"
@@ -524,12 +524,7 @@ export default function ProductionJobForm({
         ) : null}
       </div>
 
-      {!isEditMode ? (
-        <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
-          Creating this job will deduct {Number.isFinite(inputQty) ? inputQty : 0} kg of billet
-          from the selected raw-material stock.
-        </div>
-      ) : null}
+      
 
       <div className="flex flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
         <button
